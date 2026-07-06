@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "skills": {
+    "agentic-payments": {
+      "source": "stellar/stellar-dev-skill",
+      "sourceType": "github",
+      "skillPath": "skills/agentic-payments/SKILL.md",
+      "computedHash": "bfa5d04aa7a29c5201e751ab94bec3b2f24371450b7e8759108f5048a26e6e86"
+    },
+    "assets": {
+      "source": "stellar/stellar-dev-skill",
+      "sourceType": "github",
+      "skillPath": "skills/assets/SKILL.md",
+      "computedHash": "c3a9eb7e533e11fff41d9859e6df09ecdd67eb3b1cc485fa2f7fc0c697ae60fc"
+    },
+    "dapp": {
+      "source": "stellar/stellar-dev-skill",
+      "sourceType": "github",
+      "skillPath": "skills/dapp/SKILL.md",
+      "computedHash": "2eb40d889dc3cd454d5a60742aeecbcce70235a0bf303d66b814a17e857a9082"
+    },
+    "data": {
+      "source": "stellar/stellar-dev-skill",
+      "sourceType": "github",
+      "skillPath": "skills/data/SKILL.md",
+      "computedHash": "d9d41da110abd038dcd0885528fe898528f0c1b4efc66e780e9ad2bff745d278"
+    },
+    "integrate-midtrans-payments": {
+      "source": "veritrans/midtrans-agent-skills",
+      "sourceType": "github",
+      "skillPath": "integrate-midtrans-payments/SKILL.md",
+      "computedHash": "1041407bbe904a3256f0dd8aa3aaf130a8e0946fbbf6bd6553b634cbe77aa5ad"
+    },
+    "smart-contracts": {
+      "source": "stellar/stellar-dev-skill",
+      "sourceType": "github",
+      "skillPath": "skills/smart-contracts/SKILL.md",
+      "computedHash": "4887ea461be7fb985183f767c5b63d5d3b0d98be21facc2bb69ce9bd0580c050"
+    },
+    "standards": {
+      "source": "stellar/stellar-dev-skill",
+      "sourceType": "github",
+      "skillPath": "skills/standards/SKILL.md",
+      "computedHash": "c34ff933619f63b05ba5ac5dd3732a611833e96091e7f63b78345a88282fdfdf"
+    },
+    "zk-proofs": {
+      "source": "stellar/stellar-dev-skill",
+      "sourceType": "github",
+      "skillPath": "skills/zk-proofs/SKILL.md",
+      "computedHash": "24c59fbf758277022979d07c7838023fe41487f6dea12c48e343963c5a5f778e"
+    }
+  }
+}
