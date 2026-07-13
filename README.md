@@ -2,64 +2,124 @@
 
 ![Lintas Preview](public/preview.png)
 
-This project implements a bridge application that connects on-chain Stellar assets (USDC/XLM) to real-world Indonesian retail merchants using QRIS as the invoice format and Mayar for local payout and disbursement settlement.
+Lintas is a mobile web bridge application that lets a crypto holder scan any standard Indonesian QRIS code, pay with Stellar assets (USDC/XLM) from a Freighter wallet, and settle the payment in real IDR to the merchant through Mayar — all in a single flow.
 
 ---
 
-## Architectural Approach (Approach A - Production Ready)
+## Architectural Approach (Approach A)
 
-To settle payments to merchants without requiring complex, multi-billion IDR Penyelenggara Jasa Pembayaran (PJP) Kategori 1 licensing from Bank Indonesia (which would be required to pay dynamic QRIS rails directly), this bridge implements **Approach A**:
+To settle payments to merchants without requiring a multi-billion IDR Penyelenggara Jasa Pembayaran (PJP) Kategori 1 license from Bank Indonesia (required to pay dynamic QRIS rails directly), Lintas implements **Approach A**:
 
 ```
-[User Wallet (Freighter)] 
+[User Wallet (Freighter)]
        │ (Stellar USDC/XLM Payment)
        ▼
 [Bridge Holding/Escrow Address]
-       │ (On-Chain Detection)
+       │ (On-Chain Detection → Anchor Off-ramp)
        ▼
 [Bridge Backend Engine]
        │ (Trigger Fiat Disbursement)
        ▼
-[Mayar Checkout API / Payout] 
-       │ (Real-Time IDR Settlement)
+[Mayar Checkout Invoice API]
+       │ (Real-Time IDR Settlement via QRIS/E-Wallet)
        ▼
 [Merchant Bank Account / E-Wallet]
 ```
 
 ### Why this approach?
-1. **Legal & Low Compliance Barrier**: Bypasses the need for a direct QRIS issuing/acquiring license.
-2. **Direct Bank Settlement**: The merchant does not need to register on a crypto platform; they simply receive real Rupiah (IDR) in their existing bank account.
-3. **Broad Compatibility**: Settles invoices parsed from any standard QRIS code (GoPay, ShopeePay, OVO, Bank-issued QRIS) by transferring the settled fiat to the merchant's account mapped to that invoice.
+1. **Low Compliance Barrier** — bypasses the need for a direct QRIS issuing/acquiring license.
+2. **Direct Bank Settlement** — merchants receive real IDR without registering on any crypto platform.
+3. **Broad Compatibility** — works with any standard QRIS code (GoPay, ShopeePay, OVO, bank-issued QRIS).
 
 ---
 
-## Features & 5-Page Mobile Wallet Layout
+## Features — 5-Tab Mobile Wallet UI
 
-Designed with a premium, mobile-first responsive wrapper, Lintas contains 5 pages/tab sections:
-1. **Home**: Account balance overview (USDC/XLM/IDR estimates), faucet request button, and real-time exchange rates synced from CoinGecko.
-2. **Activity**: Transaction history logs detailing on-chain payment hashes and statuses.
-3. **Scan (Center Button)**: High-priority camera QRIS scanner and sandbox invoice payload generator.
-4. **Merchant**: Settlement ledger dashboard tracking Mayar disbursement payloads.
-5. **Profile**: Wallet connect settings (Freighter), network options, and key registry configuration.
+| Tab | Description |
+|---|---|
+| **Home** | Freighter wallet balance (USDC/XLM), real-time IDR/USD estimates, live exchange rates, and "Ready to pay?" quick-scan shortcut. |
+| **Tokens** | Multi-asset token balance list (USDC, XLM) with live rate cards and asset details. |
+| **Scan** *(center button)* | Direct camera QRIS scanner. Supports Gallery upload (scan from image) and My QR Code (generate personal receive QR with optional IDR/USD amount). |
+| **History** | Transaction history grouped by Network Environment (Testnet / Mainnet). Shows merchant name, city, Ref ID, status badge, and IDR/USD amount. |
+| **Profile** | Freighter wallet connect/disconnect, Network Environment (auto-synced from Freighter), Display Currency selection (IDR/USD). |
+
+---
+
+## Payment Flow (On-Chain → Fiat)
+
+1. User scans a QRIS code with the camera or uploads an image from the gallery.
+2. App parses the QRIS payload and extracts merchant name, city, and IDR amount.
+3. App fetches a live crypto quote (USDC or XLM equivalent) using CoinGecko rates.
+4. User confirms and signs the Stellar payment transaction via Freighter.
+5. Bridge engine executes the on-chain asset redemption to the Stellar anchor address.
+6. App creates a Mayar settlement invoice for the IDR amount.
+7. Merchant (or demo judge) pays the Mayar QRIS/e-wallet checkout link to simulate IDR settlement.
+8. App polls Mayar API for confirmation and transitions to `SETTLED` status (green).
+
+---
+
+## Invoice Status Flow
+
+```
+SCANNED → QUOTED → PAYMENT_PENDING → PAYMENT_CONFIRMED
+       → ANCHOR_PROCESSING → PAYOUT_PROCESSING
+       → SETTLEMENT_PENDING → SETTLED (or FAILED)
+```
 
 ---
 
 ## Technical Stack
 
-* **Frontend**: React + Vite (TypeScript, Vanilla CSS)
-* **Wallet Interop**: Freighter API + Stellar SDK
-* **Payment Processor**: Mayar Invoice/Payout API (for easy testing & quick verification)
-* **Network**: Stellar Testnet (simulating Mainnet transitions)
+| Layer | Technology |
+|---|---|
+| **Frontend** | React + Vite (TypeScript) |
+| **Styling** | Tailwind CSS v4 (`@tailwindcss/vite`), primary color `#01AED6` |
+| **Wallet** | Freighter API (`@stellar/freighter-api`) + Stellar SDK |
+| **QR Scanning** | `html5-qrcode` (camera + gallery file scan) |
+| **Payment Processor** | Mayar Invoice/Checkout API (sandbox + production) |
+| **Exchange Rates** | Frankfurter API (USD/IDR), CoinGecko (USDC/XLM rates) |
+| **Network** | Stellar Testnet / Mainnet (auto-synced from Freighter wallet) |
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in the following:
+
+```env
+VITE_MAYAR_API_KEY=your_mayar_api_key_here
+VITE_STELLAR_SECRET_KEY=your_bridge_stellar_secret_key_here
+```
+
+---
 
 ## Setup & Running
 
-1. Copy `.env.example` to `.env` and fill in the required variables (including `VITE_MAYAR_API_KEY`).
-2. Install dependencies:
+1. Install dependencies:
    ```bash
    pnpm install
    ```
-3. Run the development server:
+
+2. Copy and fill environment variables:
    ```bash
-   pnpm run dev
+   cp .env.example .env
    ```
 
+3. Run the development server:
+   ```bash
+   pnpm dev
+   ```
+
+4. Build for production:
+   ```bash
+   pnpm build
+   ```
+
+---
+
+## Network Environment
+
+The active Stellar network (Testnet or Mainnet) is **automatically synced from the connected Freighter wallet** — no manual toggle needed. Switching networks inside the Freighter extension automatically updates:
+- Horizon RPC endpoints and balance fetching
+- Mayar API environment (`sandbox` ↔ `production`)
+- Transaction History filtering (each transaction is tagged with its network at scan time)
