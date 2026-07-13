@@ -2159,8 +2159,8 @@ function App() {
 
   if (isFaucetPage) {
     return (
-      <div className="flex justify-center items-center w-screen h-screen">
-        <div className="w-full max-w-[425px] h-screen max-h-[860px] bg-slate-50 relative flex flex-col overflow-hidden max-[480px]:max-h-screen">
+      <div className="flex justify-center items-center w-screen h-screen max-[480px]:h-[100dvh]">
+        <div className="w-full max-w-[425px] h-screen max-[480px]:h-[100dvh] max-h-[860px] max-[480px]:max-h-[100dvh] bg-slate-50 relative flex flex-col overflow-hidden">
           <header className="h-[72px] px-6 flex justify-between items-center bg-white border-b border-slate-200 z-10">
             <div className="flex items-center gap-2">
               <Wallet className="text-indigo-600" size={24} />
@@ -2221,9 +2221,9 @@ function App() {
   const isScanningActive = activeTab === 'scan' && !currentInvoice;
 
   return (
-    <div className="flex justify-center items-center w-screen h-screen bg-black">
+    <div className="flex justify-center items-center w-screen h-screen max-[480px]:h-[100dvh] bg-black">
       {/* Mobile Shell Frame */}
-      <div className="w-full max-w-[425px] h-screen max-h-[860px] bg-slate-50 relative flex flex-col overflow-hidden max-[480px]:max-h-screen" style={isScanningActive ? { overflow: 'hidden' } : undefined}>
+      <div className="w-full max-w-[425px] h-screen max-[480px]:h-[100dvh] max-h-[860px] max-[480px]:max-h-[100dvh] bg-slate-50 relative flex flex-col overflow-hidden" style={isScanningActive ? { overflow: 'hidden' } : undefined}>
 
         <main className="flex-1 overflow-y-auto p-5 pb-[90px] scroll-smooth" style={isScanningActive ? { padding: 0, paddingBottom: 0, overflow: 'hidden', height: '100%' } : undefined}>
           {activeTab === 'home' && renderHomeTab()}
