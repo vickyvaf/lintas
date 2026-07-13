@@ -178,6 +178,27 @@ function App() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletNetwork, setWalletNetwork] = useState<string | null>(null);
   const [isConnectingWallet, setIsConnectingWallet] = useState<boolean>(false);
+
+  // Embedded Wallet States
+  const [isEmbeddedWallet, setIsEmbeddedWallet] = useState<boolean>(() => {
+    return localStorage.getItem('lintas_is_embedded_wallet') === 'true';
+  });
+  const [embeddedSecretKey, setEmbeddedSecretKey] = useState<string | null>(() => {
+    return localStorage.getItem('lintas_embedded_secret_key');
+  });
+
+  // Load embedded wallet on startup
+  useEffect(() => {
+    if (isEmbeddedWallet && embeddedSecretKey) {
+      try {
+        const keypair = StellarSdk.Keypair.fromSecret(embeddedSecretKey);
+        setWalletAddress(keypair.publicKey());
+      } catch (err) {
+        console.error("Failed loading embedded wallet keypair:", err);
+      }
+    }
+  }, [isEmbeddedWallet, embeddedSecretKey]);
+
   // Read environment variables
   const stellarPublicKey = import.meta.env.VITE_STELLAR_PUBLIC_KEY || '';
   const mayarApiKey = import.meta.env.VITE_MAYAR_API_KEY || '';
@@ -288,6 +309,9 @@ function App() {
   // Check if Freighter is connected and sync network settings automatically
   useEffect(() => {
     const checkFreighter = async () => {
+      if (localStorage.getItem('lintas_is_embedded_wallet') === 'true') {
+        return;
+      }
       if (localStorage.getItem('lintas_wallet_disconnected') === 'true') {
         return;
       }
@@ -936,6 +960,71 @@ function App() {
     }
   };
 
+  const handleCreateInstantWallet = async () => {
+    setIsConnectingWallet(true);
+    try {
+      const keypair = StellarSdk.Keypair.random();
+      const pubKey = keypair.publicKey();
+      const secKey = keypair.secret();
+
+      setWalletAddress(pubKey);
+      setEmbeddedSecretKey(secKey);
+      setIsEmbeddedWallet(true);
+      setWalletNetwork('TESTNET');
+
+      localStorage.setItem('lintas_is_embedded_wallet', 'true');
+      localStorage.setItem('lintas_embedded_secret_key', secKey);
+      localStorage.removeItem('lintas_wallet_disconnected');
+
+      alert(`Wallet created successfully!\n\nPublic Key:\n${pubKey}\n\nSecret Key (SAVE THIS SECURELY):\n${secKey}`);
+
+      if (stellarNet === 'testnet') {
+        setPaymentStatusMessage("Pre-funding your new Testnet wallet account...");
+        const res = await fetch(`https://friendbot.stellar.org?addr=${pubKey}`);
+        if (res.ok) {
+          setPaymentStatusMessage("Instant wallet pre-funded successfully via Friendbot!");
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed creating wallet: " + err.message);
+    } finally {
+      setIsConnectingWallet(false);
+      setPaymentStatusMessage("");
+    }
+  };
+
+  const handleImportSecretKey = () => {
+    const secKey = prompt("Enter your Stellar Secret Key (starts with 'S'):");
+    if (!secKey) return;
+    try {
+      const keypair = StellarSdk.Keypair.fromSecret(secKey.trim());
+      const pubKey = keypair.publicKey();
+
+      setWalletAddress(pubKey);
+      setEmbeddedSecretKey(secKey.trim());
+      setIsEmbeddedWallet(true);
+
+      localStorage.setItem('lintas_is_embedded_wallet', 'true');
+      localStorage.setItem('lintas_embedded_secret_key', secKey.trim());
+      localStorage.removeItem('lintas_wallet_disconnected');
+
+      alert("Wallet imported successfully!");
+    } catch (err: any) {
+      alert("Invalid Secret Key: " + err.message);
+    }
+  };
+
+  const handleDisconnectWallet = () => {
+    setWalletAddress(null);
+    setWalletNetwork(null);
+    setIsEmbeddedWallet(false);
+    setEmbeddedSecretKey(null);
+    localStorage.removeItem('lintas_is_embedded_wallet');
+    localStorage.removeItem('lintas_embedded_secret_key');
+    localStorage.setItem('lintas_wallet_disconnected', 'true');
+  };
+
   const handleSwapXLMToUSDC = async () => {
     if (!walletAddress) return;
     setCheckingPayment(true);
@@ -1158,18 +1247,24 @@ function App() {
 
     let payerAddress = '';
     let usingFreighter = false;
+    let secretKeyToUse = '';
 
-    if (walletAddress) {
+    if (walletAddress && !isEmbeddedWallet) {
       payerAddress = walletAddress;
       usingFreighter = true;
+    } else if (isEmbeddedWallet && embeddedSecretKey) {
+      payerAddress = walletAddress || '';
+      usingFreighter = false;
+      secretKeyToUse = embeddedSecretKey;
     } else {
       const stellarSecretKey = import.meta.env.VITE_STELLAR_SECRET_KEY || '';
       if (!stellarSecretKey) {
-        alert("Please connect Freighter Wallet or provide VITE_STELLAR_SECRET_KEY in your .env file to pay.");
+        alert("Please connect Freighter, create an Instant Wallet, or set VITE_STELLAR_SECRET_KEY in your .env file to pay.");
         return;
       }
       try {
         payerAddress = StellarSdk.Keypair.fromSecret(stellarSecretKey).publicKey();
+        secretKeyToUse = stellarSecretKey;
       } catch (e) {
         alert("Invalid VITE_STELLAR_SECRET_KEY. Please verify your .env file.");
         return;
@@ -1240,7 +1335,7 @@ function App() {
             const signedTrustTx = StellarSdk.TransactionBuilder.fromXDR(signedTxXdr, netConfig.networkPassphrase);
             await server.submitTransaction(signedTrustTx);
           } else {
-            const payerKeypair = StellarSdk.Keypair.fromSecret(import.meta.env.VITE_STELLAR_SECRET_KEY);
+            const payerKeypair = StellarSdk.Keypair.fromSecret(secretKeyToUse);
             trustTx.sign(payerKeypair);
             await server.submitTransaction(trustTx);
           }
@@ -1282,9 +1377,9 @@ function App() {
         setPaymentStatusMessage(`Submitting Freighter-signed transaction to Stellar ${netName}...`);
         result = await server.submitTransaction(signedTx);
       } else {
-        const payerKeypair = StellarSdk.Keypair.fromSecret(import.meta.env.VITE_STELLAR_SECRET_KEY);
+        const payerKeypair = StellarSdk.Keypair.fromSecret(secretKeyToUse);
         tx.sign(payerKeypair);
-        setPaymentStatusMessage(`Submitting auto-payment transaction to Stellar ${netName}...`);
+        setPaymentStatusMessage(`Submitting payment transaction to Stellar ${netName}...`);
         result = await server.submitTransaction(tx);
       }
 
@@ -1453,19 +1548,41 @@ function App() {
 
   const hasLoadedRates = rates.USDC > 0 && rates.XLM > 0;
 
+  const renderWalletSelectionView = () => {
+    return (
+      <div className="animate-fade-in flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4 py-8">
+        <Wallet size={56} className="text-[#01AED6] animate-pulse" />
+        <div className="flex flex-col gap-1.5">
+          <h3 className="m-0 text-slate-900 font-extrabold text-[1.2rem] tracking-tight">Access Your Wallet</h3>
+          <p className="m-0 text-slate-500 text-[0.85rem] max-w-[280px]">Connect Freighter extension or generate an instant embedded web wallet.</p>
+        </div>
+        <div className="w-full max-w-[280px] flex flex-col gap-3">
+          <button className="w-full bg-[#01AED6] hover:bg-[#0090b3] text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm" onClick={handleConnectWallet} disabled={isConnectingWallet}>
+            {isConnectingWallet ? 'Connecting...' : 'Connect Freighter Wallet'}
+          </button>
+          
+          <div className="flex items-center justify-between gap-2 my-1">
+            <div className="flex-1 h-[1px] bg-slate-200"></div>
+            <span className="text-[0.7rem] text-slate-400 font-bold uppercase tracking-wider">Or Mobile Native</span>
+            <div className="flex-1 h-[1px] bg-slate-200"></div>
+          </div>
+
+          <button className="w-full bg-slate-900 hover:bg-black text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm" onClick={handleCreateInstantWallet}>
+            Create Instant Wallet
+          </button>
+
+          <button className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200" onClick={handleImportSecretKey}>
+            Import Secret Key
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // Render Functions for Tabs
   const renderHomeTab = () => {
     if (!walletAddress) {
-      return (
-        <div className="animate-fade-in flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
-          <Wallet size={48} className="text-slate-400" />
-          <h3 className="m-0 text-slate-900 font-bold text-[1.1rem]">Connect your wallet</h3>
-          <p className="m-0 text-slate-500 text-[0.9rem]">Connect Freighter to see your balance and assets.</p>
-          <button className="w-full max-w-[200px] bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200" onClick={handleConnectWallet} disabled={isConnectingWallet}>
-            {isConnectingWallet ? 'Connecting...' : 'Connect Wallet'}
-          </button>
-        </div>
-      );
+      return renderWalletSelectionView();
     }
 
     const usdcVal = parseFloat(usdcBalance) || 0;
@@ -2090,33 +2207,37 @@ function App() {
   };
 
   const renderProfileTab = () => {
+    if (!walletAddress) {
+      return (
+        <div className="animate-fade-in flex flex-col gap-6">
+          <h3 className="text-[1.1rem] font-bold text-slate-900 mb-3 tracking-[-0.3px]">Wallet & Configurations</h3>
+          {renderWalletSelectionView()}
+        </div>
+      );
+    }
+
     return (
       <div className="animate-fade-in flex flex-col gap-6">
         <h3 className="text-[1.1rem] font-bold text-slate-900 mb-3 tracking-[-0.3px]">Wallet & Configurations</h3>
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl">
-          {walletAddress ? (
-            <div className="flex flex-col gap-4 bg-indigo-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 text-indigo-600">
-                <Wallet size={36} />
-                <div className="flex flex-col">
-                  <span className="text-[0.65rem] font-bold uppercase">Connected</span>
-                  <code className="text-[0.75rem] font-mono break-all">{walletAddress.slice(0, 12)}...{walletAddress.slice(-12)}</code>
-                </div>
+          <div className="flex flex-col gap-4 bg-indigo-50 p-4 rounded-lg">
+            <div className="flex items-center gap-2 text-indigo-600">
+              <Wallet size={36} />
+              <div className="flex flex-col">
+                <span className="text-[0.65rem] font-bold uppercase">{isEmbeddedWallet ? 'Embedded Wallet' : 'Freighter Wallet'}</span>
+                <code className="text-[0.75rem] font-mono break-all">{walletAddress.slice(0, 12)}...{walletAddress.slice(-12)}</code>
               </div>
-              <button className="w-full bg-red-50 text-red-600 border border-red-100 p-2.5 rounded-lg text-[0.8rem] font-bold cursor-pointer transition-colors duration-200 text-center hover:bg-red-600 hover:text-white" onClick={() => {
-                setWalletAddress(null);
-                setWalletNetwork(null);
-                localStorage.setItem('lintas_wallet_disconnected', 'true');
-              }}>
-                Disconnect Wallet
-              </button>
             </div>
-          ) : (
-            <button className="w-full bg-indigo-600 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer hover:bg-indigo-700" onClick={handleConnectWallet} disabled={isConnectingWallet}>
-              {isConnectingWallet ? 'Connecting...' : 'Connect Freighter Wallet'}
+            {isEmbeddedWallet && (
+              <div className="text-[0.7rem] text-slate-500 font-mono bg-white p-2.5 rounded border border-slate-200 select-all cursor-pointer break-all" title="Click to copy your Secret Key" onClick={() => { navigator.clipboard.writeText(embeddedSecretKey || ''); alert('Secret Key copied to clipboard!'); }}>
+                <strong>Secret Key:</strong> {embeddedSecretKey?.slice(0, 8)}... (Click to copy)
+              </div>
+            )}
+            <button className="w-full bg-red-50 text-red-600 border border-red-100 p-2.5 rounded-lg text-[0.8rem] font-bold cursor-pointer transition-colors duration-200 text-center hover:bg-red-600 hover:text-white" onClick={handleDisconnectWallet}>
+              Disconnect Wallet
             </button>
-          )}
+          </div>
         </div>
 
         {walletAddress && (

@@ -1,0 +1,18 @@
+{
+  "short_name": "Lintas",
+  "name": "Lintas - Stellar QRIS Bridge Wallet",
+  "description": "Seamless crypto-to-fiat retail payment bridge on Stellar.",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#000000",
+  "theme_color": "#01AED6",
+  "display": "standalone",
+  "orientation": "portrait"
+}
