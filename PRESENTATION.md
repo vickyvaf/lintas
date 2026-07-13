@@ -24,8 +24,7 @@ style: |
 
 *Connecting On-Chain Assets to Real-World Retail Payments*
 
-Vicky Adi Firmansyah — Solo Developer
-Indonesia 🇮🇩
+Vicky Adi Firmansyah
 
 ---
 
@@ -59,7 +58,7 @@ Indonesia 🇮🇩
 [Bridge Backend Engine]
        │ (Trigger Payout)
        ▼
-[Mayar Checkout API] ──► [Real-time IDR Settlement to Merchant]
+[Payment API] ──► [Real-time IDR Settlement to Merchant]
 ```
 
 ---
@@ -86,7 +85,7 @@ SCANNED ──► QUOTED ──► PAYMENT_PENDING ──► PAYMENT_CONFIRMED
 
 - **Stellar Transaction**: On-chain transfer from user to escrow.
 - **Anchor Off-ramp**: On-chain asset burn (USDC) or sink (XLM) to simulation destination.
-- **Mayar Checkout**: Automatic checkout link creation and real-time status polling.
+- **Payment Checkout**: Automatic checkout link creation and real-time status polling.
 
 ---
 
@@ -112,5 +111,3 @@ SCANNED ──► QUOTED ──► PAYMENT_PENDING ──► PAYMENT_CONFIRMED
 
 *Let's connect real-world retail commerce to the Stellar network.*
 
-**Contact & Repository:**
-[GitHub Repository](https://github.com/vickyvaf/lintas)
