@@ -792,8 +792,8 @@ function App() {
       // Real Mayar settlement
       const triggerPayoutStep = async (invoiceState: Invoice) => {
         const proxyEndpoint = mayarEnv === 'production'
-          ? '/api/mayar-production/hl/v1/invoice/create'
-          : '/api/mayar-sandbox/hl/v1/invoice/create';
+          ? '/api/mayar-production/hl/v1/invoice'
+          : '/api/mayar-sandbox/hl/v1/invoice';
 
         const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
