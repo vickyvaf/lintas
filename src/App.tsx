@@ -9,6 +9,7 @@ import {
   getNetwork
 } from '@stellar/freighter-api';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { entropyToMnemonic, mnemonicToSeed, mnemonicToEntropy } from './mnemonic';
 import {
   Home,
   History,
@@ -187,6 +188,9 @@ function App() {
   });
   const [embeddedSecretKey, setEmbeddedSecretKey] = useState<string | null>(() => {
     return localStorage.getItem('lintas_embedded_secret_key');
+  });
+  const [embeddedSeedPhrase, setEmbeddedSeedPhrase] = useState<string | null>(() => {
+    return localStorage.getItem('lintas_embedded_seed_phrase');
   });
 
   // Load embedded wallet on startup
@@ -972,20 +976,27 @@ function App() {
   const handleCreateInstantWallet = async () => {
     setIsConnectingWallet(true);
     try {
-      const keypair = StellarSdk.Keypair.random();
+      // Generate 16 bytes of entropy for a 12-word seed phrase
+      const entropy = crypto.getRandomValues(new Uint8Array(16));
+      const seedPhrase = entropyToMnemonic(entropy);
+      const seed = await mnemonicToSeed(seedPhrase);
+      
+      const keypair = StellarSdk.Keypair.fromRawEd25519Seed(seed);
       const pubKey = keypair.publicKey();
       const secKey = keypair.secret();
 
       setWalletAddress(pubKey);
       setEmbeddedSecretKey(secKey);
+      setEmbeddedSeedPhrase(seedPhrase);
       setIsEmbeddedWallet(true);
       setWalletNetwork('TESTNET');
 
       localStorage.setItem('lintas_is_embedded_wallet', 'true');
       localStorage.setItem('lintas_embedded_secret_key', secKey);
+      localStorage.setItem('lintas_embedded_seed_phrase', seedPhrase);
       localStorage.removeItem('lintas_wallet_disconnected');
 
-      alert(`Wallet created successfully!\n\nPublic Key:\n${pubKey}\n\nSecret Key (SAVE THIS SECURELY):\n${secKey}`);
+      alert(`Wallet created successfully!\n\nPublic Key:\n${pubKey}\n\nSeed Phrase (SAVE THIS SECURELY):\n${seedPhrase}`);
 
       if (stellarNet === 'testnet') {
         setPaymentStatusMessage("Pre-funding your new Testnet wallet account...");
@@ -1003,24 +1014,47 @@ function App() {
     }
   };
 
-  const handleImportSecretKey = () => {
-    const secKey = prompt("Enter your Stellar Secret Key (starts with 'S'):");
-    if (!secKey) return;
+  const handleImportWallet = async () => {
+    const input = prompt("Enter your 12-word Seed Phrase OR Stellar Secret Key (starts with 'S'):");
+    if (!input) return;
+    const cleanInput = input.trim();
     try {
-      const keypair = StellarSdk.Keypair.fromSecret(secKey.trim());
-      const pubKey = keypair.publicKey();
+      let pubKey = '';
+      let secKey = '';
+      let seedPhrase = '';
+
+      const isSeedPhrase = cleanInput.split(/\s+/).length === 12;
+
+      if (isSeedPhrase) {
+        setPaymentStatusMessage("Deriving Stellar Keypair from seed phrase...");
+        const seed = await mnemonicToSeed(cleanInput);
+        const keypair = StellarSdk.Keypair.fromRawEd25519Seed(seed);
+        pubKey = keypair.publicKey();
+        secKey = keypair.secret();
+        seedPhrase = cleanInput;
+      } else {
+        const keypair = StellarSdk.Keypair.fromSecret(cleanInput);
+        pubKey = keypair.publicKey();
+        secKey = cleanInput;
+        seedPhrase = 'Direct Secret Key Import';
+      }
 
       setWalletAddress(pubKey);
-      setEmbeddedSecretKey(secKey.trim());
+      setEmbeddedSecretKey(secKey);
+      setEmbeddedSeedPhrase(seedPhrase);
       setIsEmbeddedWallet(true);
 
       localStorage.setItem('lintas_is_embedded_wallet', 'true');
-      localStorage.setItem('lintas_embedded_secret_key', secKey.trim());
+      localStorage.setItem('lintas_embedded_secret_key', secKey);
+      localStorage.setItem('lintas_embedded_seed_phrase', seedPhrase);
       localStorage.removeItem('lintas_wallet_disconnected');
 
       alert("Wallet imported successfully!");
     } catch (err: any) {
-      alert("Invalid Secret Key: " + err.message);
+      console.error(err);
+      alert("Invalid seed phrase or secret key: " + err.message);
+    } finally {
+      setPaymentStatusMessage("");
     }
   };
 
@@ -1029,8 +1063,10 @@ function App() {
     setWalletNetwork(null);
     setIsEmbeddedWallet(false);
     setEmbeddedSecretKey(null);
+    setEmbeddedSeedPhrase(null);
     localStorage.removeItem('lintas_is_embedded_wallet');
     localStorage.removeItem('lintas_embedded_secret_key');
+    localStorage.removeItem('lintas_embedded_seed_phrase');
     localStorage.setItem('lintas_wallet_disconnected', 'true');
   };
 
@@ -1581,8 +1617,8 @@ function App() {
               Create Instant Wallet
             </button>
 
-            <button className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200" onClick={handleImportSecretKey}>
-              Import Secret Key
+            <button className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200" onClick={handleImportWallet}>
+              Import Seed / Secret Key
             </button>
           </div>
         </div>
@@ -2240,8 +2276,17 @@ function App() {
               </div>
             </div>
             {isEmbeddedWallet && (
-              <div className="text-[0.7rem] text-slate-500 font-mono bg-white p-2.5 rounded border border-slate-200 select-all cursor-pointer break-all" title="Click to copy your Secret Key" onClick={() => { navigator.clipboard.writeText(embeddedSecretKey || ''); alert('Secret Key copied to clipboard!'); }}>
-                <strong>Secret Key:</strong> {embeddedSecretKey?.slice(0, 8)}... (Click to copy)
+              <div className="flex flex-col gap-2">
+                {embeddedSeedPhrase && embeddedSeedPhrase !== 'Direct Secret Key Import' && (
+                  <div className="text-[0.7rem] text-slate-600 font-mono bg-white p-2.5 rounded border border-slate-200 select-all cursor-pointer break-all" title="Click to copy your Seed Phrase" onClick={() => { navigator.clipboard.writeText(embeddedSeedPhrase || ''); alert('Seed Phrase copied to clipboard!'); }}>
+                    <strong>Seed Phrase:</strong> {embeddedSeedPhrase}
+                    <span className="block text-[0.6rem] text-indigo-600 mt-1 font-bold">✓ Click to Copy 12-Word Seed Phrase</span>
+                  </div>
+                )}
+                <div className="text-[0.7rem] text-slate-400 font-mono bg-white p-2.5 rounded border border-slate-200 select-all cursor-pointer break-all" title="Click to copy your Secret Key" onClick={() => { navigator.clipboard.writeText(embeddedSecretKey || ''); alert('Secret Key copied to clipboard!'); }}>
+                  <strong>Secret Key:</strong> {embeddedSecretKey?.slice(0, 8)}...
+                  <span className="block text-[0.6rem] text-slate-400 mt-1 font-bold">✓ Click to Copy Secret Key (starts with S)</span>
+                </div>
               </div>
             )}
             <button className="w-full bg-red-50 text-red-600 border border-red-100 p-2.5 rounded-lg text-[0.8rem] font-bold cursor-pointer transition-colors duration-200 text-center hover:bg-red-600 hover:text-white" onClick={handleDisconnectWallet}>
