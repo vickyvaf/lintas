@@ -1349,6 +1349,10 @@ function App() {
 
   const handleCheckPayment = async () => {
     if (!currentInvoice) return;
+    if (['ANCHOR_PROCESSING', 'PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status)) {
+      console.log("[CheckPayment] Invoice is already verified and processing downstream steps. Bypassing check.");
+      return;
+    }
     setCheckingPayment(true);
     const netName = stellarNet === 'mainnet' ? 'Mainnet' : 'Testnet';
     setPaymentStatusMessage(`Fetching transactions from Horizon ${netName} for account ${stellarPublicKey}...`);
