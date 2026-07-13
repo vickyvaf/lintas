@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import * as StellarSdk from '@stellar/stellar-sdk';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 import {
   isConnected,
   getAddress,
@@ -23,7 +23,8 @@ import {
   AlertCircle,
   ExternalLink,
   ChevronRight,
-  Store
+  Store,
+  Image
 } from 'lucide-react';
 
 interface Invoice {
@@ -51,6 +52,7 @@ interface Invoice {
   mayarSettlementPaymentUrl?: string;
   mayarSettlementPaidAt?: string;
   mayarSettlementError?: string;
+  network?: 'testnet' | 'mainnet';
 }
 
 // CRC16-CCITT checksum calculator for EMVCo/QRIS validation
@@ -121,12 +123,51 @@ function App() {
         pathname === '/profile' ? 'profile' : 'home';
 
   const isFaucetPage = pathname === '/faucet';
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>(() => {
+    try {
+      const stored = localStorage.getItem('lintas_invoices');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.warn("Failed to load invoices from localStorage:", e);
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('lintas_invoices', JSON.stringify(invoices));
+    } catch (e) {
+      console.warn("Failed to save invoices to localStorage:", e);
+    }
+  }, [invoices]);
+
+  const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(() => {
+    try {
+      const stored = localStorage.getItem('lintas_current_invoice');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      console.warn("Failed to load current invoice:", e);
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (currentInvoice) {
+        localStorage.setItem('lintas_current_invoice', JSON.stringify(currentInvoice));
+      } else {
+        localStorage.removeItem('lintas_current_invoice');
+      }
+    } catch (e) {
+      console.warn("Failed to save current invoice:", e);
+    }
+  }, [currentInvoice]);
   const [qrisPayload, setQrisPayload] = useState<string>(DEFAULT_QRIS);
   const [selectedAsset, setSelectedAsset] = useState<string>('USDC');
   const [checkingPayment, setCheckingPayment] = useState<boolean>(false);
   const [paymentStatusMessage, setPaymentStatusMessage] = useState<string>('');
+  const [showReceiveQr, setShowReceiveQr] = useState<boolean>(false);
+  const [receiveAmount, setReceiveAmount] = useState<string>('');
 
   // QR Camera Scanner Visibility State
   const [showScanner, setShowScanner] = useState<boolean>(false);
@@ -137,22 +178,6 @@ function App() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletNetwork, setWalletNetwork] = useState<string | null>(null);
   const [isConnectingWallet, setIsConnectingWallet] = useState<boolean>(false);
-
-  // Dynamic QRIS Generator Inputs
-  const [inputMerchant, setInputMerchant] = useState<string>('Demo Merchant');
-  const [inputCity, setInputCity] = useState<string>('Jakarta');
-  const [inputAmount, setInputAmount] = useState<number>(15000);
-
-  // Dynamic rates from CoinGecko (Initialized to 0)
-  const [rates, setRates] = useState<Record<string, number>>({
-    USDC: 0,
-    XLM: 0
-  });
-  const [rateSyncTime, setRateSyncTime] = useState<string | null>(null);
-  const [rateSyncSource, setRateSyncSource] = useState<string>('');
-  const [rateError, setRateError] = useState<string | null>(null);
-  const [fetchingRates, setFetchingRates] = useState<boolean>(false);
-
   // Read environment variables
   const stellarPublicKey = import.meta.env.VITE_STELLAR_PUBLIC_KEY || '';
   const mayarApiKey = import.meta.env.VITE_MAYAR_API_KEY || '';
@@ -173,16 +198,99 @@ function App() {
     explorerBase: 'https://stellar.expert/explorer/testnet/tx',
   };
 
+  const [usdcBalance, setUsdcBalance] = useState<string>('100.00');
+  const [xlmBalance, setXlmBalance] = useState<string>('0.00');
+
+  useEffect(() => {
+    if (!walletAddress) {
+      setUsdcBalance('100.00');
+      setXlmBalance('0.00');
+      return;
+    }
+
+    const fetchBalances = async () => {
+      try {
+        const server = new StellarSdk.Horizon.Server(netConfig.horizonUrl);
+        const account = await server.loadAccount(walletAddress);
+
+        // Find native (XLM) balance
+        const nativeBal = account.balances.find(b => b.asset_type === 'native');
+        if (nativeBal) {
+          setXlmBalance(parseFloat(nativeBal.balance).toFixed(2));
+        } else {
+          setXlmBalance('0.00');
+        }
+
+        // Find USDC balance
+        const usdcBal = account.balances.find(b =>
+          b.asset_type === 'credit_alphanum4' &&
+          b.asset_code === 'USDC' &&
+          b.asset_issuer === netConfig.usdcIssuer
+        );
+        if (usdcBal) {
+          setUsdcBalance(parseFloat(usdcBal.balance).toFixed(2));
+        } else {
+          setUsdcBalance('0.00');
+        }
+      } catch (err) {
+        console.warn('Failed to fetch wallet balances:', err);
+      }
+    };
+
+    fetchBalances();
+    // Refresh balances every 10 seconds if wallet is connected
+    const interval = setInterval(fetchBalances, 10000);
+    return () => clearInterval(interval);
+  }, [walletAddress, stellarNet]);
+
+  // Dynamic QRIS Generator Inputs
+  const [inputMerchant, setInputMerchant] = useState<string>('Demo Merchant');
+  const [inputCity, setInputCity] = useState<string>('Jakarta');
+  const [inputAmount, setInputAmount] = useState<number>(15000);
+
+  // Dynamic rates from CoinGecko (Initialized to 0)
+  const [rates, setRates] = useState<Record<string, number>>({
+    USDC: 0,
+    XLM: 0
+  });
+  const [usdToIdrRate, setUsdToIdrRate] = useState<number>(15000);
+  const [rateSyncTime, setRateSyncTime] = useState<string | null>(null);
+  const [rateSyncSource, setRateSyncSource] = useState<string>('');
+  const [rateError, setRateError] = useState<string | null>(null);
+  const [fetchingRates, setFetchingRates] = useState<boolean>(false);
+
   // Environment override option for Mayar (default to sandbox for testing)
   const [mayarEnv, setMayarEnv] = useState<'sandbox' | 'production'>('sandbox');
+
+  // Display currency selection: 'USD' | 'IDR'
+  const [displayCurrency, setDisplayCurrency] = useState<'USD' | 'IDR'>(() => {
+    return (localStorage.getItem('lintas_display_currency') as 'USD' | 'IDR') || 'IDR';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lintas_display_currency', displayCurrency);
+  }, [displayCurrency]);
+
+  // Reset Receive Payments state when navigating away or switching tabs
+  useEffect(() => {
+    if (activeTab !== 'scan') {
+      setShowReceiveQr(false);
+      setReceiveAmount('');
+    } else if (!showReceiveQr) {
+      setReceiveAmount('');
+    }
+  }, [showReceiveQr, activeTab]);
 
   // Polling reference to prevent memory leaks and clean up on unmount
   const pollIntervalRef = useRef<any>(null);
   const processingInvoiceIdRef = useRef<string | null>(null);
 
-  // Check if Freighter is connected on load
+  // Check if Freighter is connected and sync network settings automatically
   useEffect(() => {
     const checkFreighter = async () => {
+      if (localStorage.getItem('lintas_wallet_disconnected') === 'true') {
+        return;
+      }
       try {
         const { isConnected: installed } = await isConnected();
         if (!installed) return;
@@ -191,13 +299,29 @@ function App() {
           setWalletAddress(addr);
           const { network: net } = await getNetwork();
           setWalletNetwork(net);
+        } else {
+          setWalletAddress(null);
+          setWalletNetwork(null);
         }
       } catch (e) {
-        console.warn("Failed checking Freighter connection on load", e);
+        console.warn("Failed checking Freighter connection", e);
       }
     };
     checkFreighter();
+    const interval = setInterval(checkFreighter, 2500);
+    return () => clearInterval(interval);
   }, []);
+
+  // Synchronize app stellarNet with Freighter walletNetwork state
+  useEffect(() => {
+    if (walletNetwork) {
+      if (walletNetwork.toUpperCase() === 'PUBLIC') {
+        setStellarNet('mainnet');
+      } else {
+        setStellarNet('testnet');
+      }
+    }
+  }, [walletNetwork]);
 
   // Clean up polling interval when component unmounts
   useEffect(() => {
@@ -230,7 +354,12 @@ function App() {
     try {
       const cachedRates = localStorage.getItem(cacheKey);
       const cachedTimestamp = localStorage.getItem(timestampKey);
+      const cachedUsdRate = localStorage.getItem('usd_to_idr_rate');
       const now = Date.now();
+
+      if (cachedUsdRate) {
+        setUsdToIdrRate(parseFloat(cachedUsdRate));
+      }
 
       // Check if cache is still valid
       if (cachedRates && cachedTimestamp && (now - parseInt(cachedTimestamp, 10) < cacheDuration)) {
@@ -243,6 +372,22 @@ function App() {
         console.log('[CoinGecko] Loaded rates from cache:', parsedRates);
         setFetchingRates(false);
         return;
+      }
+
+      // Fetch USD to IDR rate from Frankfurter API (Free, no key)
+      try {
+        const fiatRes = await fetch('https://api.frankfurter.dev/v1/latest?base=USD&symbols=IDR');
+        if (fiatRes.ok) {
+          const fiatData = await fiatRes.json();
+          if (fiatData.rates && fiatData.rates.IDR) {
+            const newFiatRate = fiatData.rates.IDR;
+            setUsdToIdrRate(newFiatRate);
+            localStorage.setItem('usd_to_idr_rate', newFiatRate.toString());
+            console.log('[Frankfurter] Synced live USD/IDR rate:', newFiatRate);
+          }
+        }
+      } catch (fiatErr) {
+        console.warn('[Frankfurter] Failed to fetch USD/IDR rate:', fiatErr);
       }
 
       // If cache expired or not found, fetch from CoinGecko Public API
@@ -260,17 +405,17 @@ function App() {
         const ratesData = { USDC: newUsdcRate, XLM: newXlmRate };
         setRates(ratesData);
         setRateSyncTime(new Date().toLocaleTimeString());
-        setRateSyncSource('CoinGecko Public API');
+        setRateSyncSource('CoinGecko + Frankfurter');
 
         // Save to cache
         localStorage.setItem(cacheKey, JSON.stringify(ratesData));
         localStorage.setItem(timestampKey, now.toString());
-        console.log('[CoinGecko] Synced successfully and cached in localStorage');
+        console.log('[Rates Sync] Synced successfully and cached in localStorage');
       } else {
         throw new Error("Unable to parse rates from public API response.");
       }
     } catch (err: any) {
-      console.error('[CoinGecko] API fetch failed:', err);
+      console.error('[Rates Sync] API fetch failed:', err);
       setRateError(`Failed to fetch exchange rates: ${err.message}`);
 
       const expiredRates = localStorage.getItem(cacheKey);
@@ -290,11 +435,11 @@ function App() {
     fetchRates();
   }, []);
 
-  // HTML5 Camera QR Code Scanner lifecycle hook
+  // HTML5 Camera QR Code Scanner lifecycle hook using low-level Html5Qrcode
   useEffect(() => {
-    if (!showScanner) return;
+    if (activeTab !== 'scan' || currentInvoice || showReceiveQr) return;
 
-    let scanner: Html5QrcodeScanner | null = null;
+    let html5QrCode: any = null;
     let isMounted = true;
 
     const timer = setTimeout(() => {
@@ -303,45 +448,52 @@ function App() {
       const container = document.getElementById("qr-reader");
       if (!container) return;
 
-      scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        { 
-          fps: 10, 
-          qrbox: { width: 220, height: 220 },
-          rememberLastUsedCamera: true
-        },
-        /* verbose= */ false
-      );
+      try {
+        // Instantiate low-level scan API
+        html5QrCode = new Html5Qrcode("qr-reader");
 
-      scanner.render(
-        (decodedText) => {
-          console.log("[QRIS Scanner] Decoded payload:", decodedText);
-          const parsed = parseQRIS(decodedText);
+        html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 220, height: 220 }
+          },
+          (decodedText: string) => {
+            console.log("[QRIS Scanner] Decoded payload:", decodedText);
+            const parsed = parseQRIS(decodedText);
+            const invoiceWithNetwork = {
+              ...parsed,
+              network: stellarNet
+            };
+            setCurrentInvoice(invoiceWithNetwork);
+            setQrisPayload(decodedText);
+            setPaymentStatusMessage('');
 
-          setCurrentInvoice(parsed);
-          setQrisPayload(decodedText);
-          setPaymentStatusMessage('');
-
-          // Shutdown scanner and close overlay
-          if (scanner) {
-            scanner.clear().catch(err => console.error("Error shutting down QR scanner:", err));
+            if (html5QrCode && html5QrCode.isScanning) {
+              html5QrCode.stop().catch((err: any) => console.error("Error stopping scanner:", err));
+            }
+          },
+          (error: any) => {
+            // Ignore verbose camera read errors
           }
-          setShowScanner(false);
-        },
-        (error) => {
-          // Ignore verbose scanner read errors
-        }
-      );
-    }, 100);
+        ).catch((err: any) => {
+          console.warn("Failed to request camera or start scanning:", err);
+        });
+      } catch (e) {
+        console.error("Html5Qrcode loading error:", e);
+      }
+    }, 150);
 
     return () => {
       isMounted = false;
       clearTimeout(timer);
-      if (scanner) {
-        scanner.clear().catch(err => console.log("Cleaned up camera resources:", err));
+      if (html5QrCode) {
+        if (html5QrCode.isScanning) {
+          html5QrCode.stop().catch((err: any) => console.log("Cleaned up camera resources:", err));
+        }
       }
     };
-  }, [showScanner]);
+  }, [activeTab, currentInvoice, showReceiveQr, stellarNet]);
 
   // Automatically calculate quote when invoice, selected asset, or rates change
   useEffect(() => {
@@ -409,8 +561,14 @@ function App() {
       const executeAnchorOfframpOnChain = async () => {
         const stellarSecretKey = import.meta.env.VITE_STELLAR_SECRET_KEY || '';
         if (!stellarSecretKey) {
-          console.warn("[Bridge Engine] Secret key missing, falling back to simulated off-ramp.");
-          setTimeout(proceedToPayoutSimulation, 2000);
+          const errMsg = "VITE_STELLAR_SECRET_KEY is missing. Cannot perform on-chain Anchor Off-ramp redemption.";
+          console.error("[Bridge Engine]", errMsg);
+          setPaymentStatusMessage(`Redemption failed: ${errMsg}`);
+          const failedState = {
+            ...currentInvoice,
+            status: 'FAILED' as any
+          };
+          confirmPayment(failedState);
           return;
         }
 
@@ -510,7 +668,7 @@ function App() {
           // Proceed to payout bank transfer step
           setTimeout(() => {
             triggerPayoutStep(nextInvoiceState);
-          }, 2000);
+          }, 500);
 
         } catch (err: any) {
           console.error("[Bridge Engine] On-chain off-ramp transaction failed:", err);
@@ -518,21 +676,13 @@ function App() {
           if (err.response && err.response.data && err.response.data.extras && err.response.data.extras.result_codes) {
             errMsg += ` (${JSON.stringify(err.response.data.extras.result_codes)})`;
           }
-          setPaymentStatusMessage(`Anchor off-ramp failed: ${errMsg}. Falling back to simulated off-ramp...`);
-          setTimeout(proceedToPayoutSimulation, 3000);
+          setPaymentStatusMessage(`Anchor off-ramp failed: ${errMsg}`);
+          const failedState = {
+            ...currentInvoice,
+            status: 'FAILED' as any
+          };
+          confirmPayment(failedState);
         }
-      };
-
-      const proceedToPayoutSimulation = () => {
-        const nextInvoiceState = {
-          ...currentInvoice,
-          status: 'PAYOUT_PROCESSING',
-          anchorStatus: 'SETTLED_FIAT_AVAILABLE'
-        };
-        confirmPayment(nextInvoiceState);
-        setTimeout(() => {
-          triggerPayoutStep(nextInvoiceState);
-        }, 2000);
       };
 
       // Real Mayar settlement
@@ -567,6 +717,9 @@ function App() {
         };
 
         try {
+          if (!mayarApiKey) {
+            throw new Error("Mayar API key is not configured in your .env file.");
+          }
           setPaymentStatusMessage('Creating Mayar settlement invoice for merchant payout...');
           console.log('[Bridge Engine] Creating Mayar settlement invoice...', settlementPayload);
 
@@ -612,79 +765,77 @@ function App() {
             `Open the payment URL above and pay via QRIS/e-wallet to complete merchant settlement.`
           );
 
-          startSettlementPolling(mayarInvoiceId, settlementState);
-
         } catch (err: any) {
           console.error('[Bridge Engine] Mayar settlement invoice creation failed:', err);
-          setPaymentStatusMessage(
-            `Mayar settlement failed: ${err.message}\n\n` +
-            `Settlement is pending. You can retry or manually settle the merchant.`
-          );
+          setPaymentStatusMessage(`Mayar settlement failed: ${err.message}`);
 
           const failedState = {
             ...invoiceState,
-            status: 'SETTLEMENT_PENDING',
+            status: 'FAILED' as any,
             mayarSettlementError: err.message
           };
           confirmPayment(failedState);
         }
       };
 
-      const startSettlementPolling = (mayarInvoiceId: string, invoiceState: Invoice) => {
-        const statusEndpoint = mayarEnv === 'production'
-          ? `/api/mayar-production/hl/v1/invoice/${mayarInvoiceId}`
-          : `/api/mayar-sandbox/hl/v1/invoice/${mayarInvoiceId}`;
-
-        console.log(`[Bridge Engine] Starting settlement polling for Mayar invoice ${mayarInvoiceId}...`);
-
-        pollIntervalRef.current = setInterval(async () => {
-          try {
-            const response = await fetch(statusEndpoint, {
-              headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${mayarApiKey}`
-              }
-            });
-            if (!response.ok) return;
-
-            const json = await response.json();
-            if (json.statusCode === 200 && json.data) {
-              const mayarStatus = json.data.status;
-              console.log(`[Bridge Engine] Settlement Mayar invoice status: ${mayarStatus}`);
-
-              if (mayarStatus === 'paid') {
-                if (pollIntervalRef.current) {
-                  clearInterval(pollIntervalRef.current);
-                  pollIntervalRef.current = null;
-                }
-
-                const settledState = {
-                  ...invoiceState,
-                  status: 'SETTLED',
-                  payoutStatus: 'COMPLETED',
-                  payoutRef: mayarInvoiceId,
-                  mayarSettlementPaidAt: new Date().toISOString()
-                };
-                confirmPayment(settledState);
-
-                setPaymentStatusMessage(
-                  `Bridge settlement completed!\n` +
-                  `Mayar settlement invoice ${mayarInvoiceId} has been paid.\n` +
-                  `Merchant: ${invoiceState.merchant} | Amount: Rp ${invoiceState.idrAmount.toLocaleString()}\n` +
-                  `Stellar Tx: ${invoiceState.stellarTxHash}\n` +
-                  `Anchor Tx: ${invoiceState.anchorTxHash}`
-                );
-              }
-            }
-          } catch (err: any) {
-            console.warn('[Bridge Engine] Settlement polling error:', err.message);
-          }
-        }, 5000);
-      };
-
       executeAnchorOfframpOnChain();
     }
   }, [currentInvoice?.status]);
+
+  // Unified effect to start/resume Mayar settlement polling on mount or state changes
+  useEffect(() => {
+    if (!currentInvoice || currentInvoice.status !== 'SETTLEMENT_PENDING' || !currentInvoice.mayarSettlementInvoiceId) {
+      return;
+    }
+
+    const intervalId = setInterval(async () => {
+      const statusEndpoint = mayarEnv === 'production'
+        ? `/api/mayar-production/hl/v1/invoice/${currentInvoice.mayarSettlementInvoiceId}`
+        : `/api/mayar-sandbox/hl/v1/invoice/${currentInvoice.mayarSettlementInvoiceId}`;
+
+      try {
+        if (!mayarApiKey) return;
+        const response = await fetch(statusEndpoint, {
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${mayarApiKey}`
+          }
+        });
+        if (!response.ok) return;
+
+        const json = await response.json();
+        if (json.statusCode === 200 && json.data) {
+          const mayarStatus = json.data.status;
+          console.log(`[Bridge Engine] Mayar polling status for ${currentInvoice.mayarSettlementInvoiceId}: ${mayarStatus}`);
+
+          if (mayarStatus === 'paid') {
+            clearInterval(intervalId);
+
+            const settledState = {
+              ...currentInvoice,
+              status: 'SETTLED' as const,
+              payoutStatus: 'COMPLETED',
+              payoutRef: currentInvoice.mayarSettlementInvoiceId,
+              mayarSettlementPaidAt: new Date().toISOString()
+            };
+            confirmPayment(settledState);
+
+            setPaymentStatusMessage(
+              `Bridge settlement completed!\n` +
+              `Mayar settlement invoice ${currentInvoice.mayarSettlementInvoiceId} has been paid.\n` +
+              `Merchant: ${currentInvoice.merchant} | Amount: Rp ${currentInvoice.idrAmount.toLocaleString()}\n` +
+              `Stellar Tx: ${currentInvoice.stellarTxHash}\n` +
+              `Anchor Tx: ${currentInvoice.anchorTxHash}`
+            );
+          }
+        }
+      } catch (err: any) {
+        console.warn('[Bridge Engine] Settlement polling error:', err.message);
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [currentInvoice?.id, currentInvoice?.status]);
 
   const parseQRIS = (payload: string): Invoice => {
     let idrAmount = 0;
@@ -774,6 +925,7 @@ function App() {
         setWalletAddress(addr);
         const { network: net } = await getNetwork();
         setWalletNetwork(net);
+        localStorage.removeItem('lintas_wallet_disconnected');
         console.log("[Freighter] Wallet connected address:", addr);
       }
     } catch (err: any) {
@@ -1151,6 +1303,19 @@ function App() {
         errMsg += ` (${JSON.stringify(err.response.data.extras.result_codes)})`;
       }
       setPaymentStatusMessage(`Payment Error: ${errMsg}`);
+
+      const failedInvoice = {
+        ...currentInvoice,
+        status: 'FAILED' as any,
+        paymentMethodUsed: 'Stellar On-Chain (Failed)'
+      };
+      setCurrentInvoice(failedInvoice);
+      setInvoices(prev => {
+        if (prev.some(inv => inv.id === failedInvoice.id)) {
+          return prev.map(inv => inv.id === failedInvoice.id ? failedInvoice : inv);
+        }
+        return [...prev, failedInvoice];
+      });
     } finally {
       setCheckingPayment(false);
     }
@@ -1277,32 +1442,45 @@ function App() {
 
     const updated = {
       ...currentInvoice,
-      status: 'PAYMENT_CONFIRMED',
-      stellarTxHash: 'mayar_tx_' + Math.random().toString(36).substring(2, 14),
+      status: 'SETTLED' as any,
       paymentMethodUsed: `Mayar Checkout (${methodName})`
     };
     setPaymentStatusMessage(`Paid via Mayar Checkout (${methodName}) successfully!`);
     confirmPayment(updated);
   };
 
-  const handleSimulateMayarSuccess = () => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-    handleMayarPaymentSuccess('Simulated Mayar QRIS');
-  };
+
 
   const hasLoadedRates = rates.USDC > 0 && rates.XLM > 0;
 
   // Render Functions for Tabs
   const renderHomeTab = () => {
+    if (!walletAddress) {
+      return (
+        <div className="animate-fade-in flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
+          <Wallet size={48} className="text-slate-400" />
+          <h3 className="m-0 text-slate-900 font-bold text-[1.1rem]">Connect your wallet</h3>
+          <p className="m-0 text-slate-500 text-[0.9rem]">Connect Freighter to see your balance and assets.</p>
+          <button className="w-full max-w-[200px] bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200" onClick={handleConnectWallet} disabled={isConnectingWallet}>
+            {isConnectingWallet ? 'Connecting...' : 'Connect Wallet'}
+          </button>
+        </div>
+      );
+    }
+
+    const usdcVal = parseFloat(usdcBalance) || 0;
+    const xlmVal = parseFloat(xlmBalance) || 0;
+    const usdcEstIdr = rates.USDC > 0 ? (usdcVal * rates.USDC) : (usdcVal * usdToIdrRate);
+    const xlmEstIdr = rates.XLM > 0 ? (xlmVal * rates.XLM) : 0;
+    const totalEstIdr = usdcEstIdr + xlmEstIdr;
+    const totalEstUsd = rates.USDC > 0 ? (totalEstIdr / rates.USDC) : (usdcVal + (xlmVal * 0.1823));
+
     return (
-      <div className="tab-content animate-fade-in">
+      <div className="animate-fade-in flex flex-col gap-6">
         {/* Balance Card */}
-        <div className="balance-card">
+        <div className="bg-indigo-600 text-white rounded-3xl p-6 relative overflow-hidden">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <span className="balance-label" style={{ margin: 0 }}>Total Balance (Estimated)</span>
+            <span className="text-[0.85rem] font-medium opacity-80 block mb-1" style={{ margin: 0 }}>Total Balance</span>
             <button
               onClick={fetchRates}
               disabled={fetchingRates}
@@ -1325,79 +1503,123 @@ function App() {
               <RefreshCw size={16} className={fetchingRates ? "animate-spin" : ""} />
             </button>
           </div>
-          <h2 className="balance-amount">
-            Rp {(hasLoadedRates ? (100 * rates.USDC) : 1500000).toLocaleString()}
+          <h2 className="text-[2rem] font-extrabold tracking-[-0.5px] mb-4">
+            {displayCurrency === 'USD'
+              ? `$ ${totalEstUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : `Rp ${totalEstIdr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </h2>
-          <div className="balance-sub-assets">
-            <div className="sub-asset">
-              <span className="asset-dot usdc"></span>
-              <span>100.00 USDC</span>
+          <div className="flex gap-4 border-t border-white/15 pt-4">
+            <div className="flex items-center gap-1.5 text-[0.85rem] font-semibold">
+              <img src="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/usdc.png" alt="USDC Logo" className="w-4 h-4 rounded-full" />
+              <span>{usdcVal.toFixed(2)} USDC</span>
             </div>
-            <div className="sub-asset">
-              <span className="asset-dot xlm"></span>
-              <span>0.00 XLM</span>
+            <div className="flex items-center gap-1.5 text-[0.85rem] font-semibold">
+              <img src="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/black/xlm.png" alt="XLM Logo" className="w-4 h-4 rounded-full" />
+              <span>{xlmVal.toFixed(2)} XLM</span>
             </div>
           </div>
         </div>
 
         {/* Live Rates & Bridge Banner */}
-        <div className="rates-container">
-          <h3 className="section-title">Live Stablecoin Rates</h3>
-          <div className="rate-card-grid">
-            <div className="rate-card">
-              <div className="rate-info">
-                <span className="rate-code">USDC/IDR</span>
-                <span className="rate-name">USD Coin</span>
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[1.1rem] font-bold text-slate-900 mb-3 tracking-[-0.3px]">Live Stablecoin Rates</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white border border-slate-200 p-4 rounded-2xl">
+              <div className="flex flex-col mb-1.5">
+                <span className="text-[0.85rem] font-bold text-slate-900">
+                  {displayCurrency === 'USD' ? 'USDC/USD' : 'USDC/IDR'}
+                </span>
+                <span className="text-[0.7rem] text-slate-500">USD Coin</span>
               </div>
-              <span className="rate-val">Rp {rates.USDC.toLocaleString()}</span>
+              <span className="text-[1rem] font-extrabold text-indigo-600">
+                {displayCurrency === 'USD' ? '$ 1.00' : `Rp ${rates.USDC.toLocaleString()}`}
+              </span>
             </div>
-            <div className="rate-card">
-              <div className="rate-info">
-                <span className="rate-code">XLM/IDR</span>
-                <span className="rate-name">Stellar Lumens</span>
+            <div className="bg-white border border-slate-200 p-4 rounded-2xl">
+              <div className="flex flex-col mb-1.5">
+                <span className="text-[0.85rem] font-bold text-slate-900">
+                  {displayCurrency === 'USD' ? 'XLM/USD' : 'XLM/IDR'}
+                </span>
+                <span className="text-[0.7rem] text-slate-500">Stellar Lumens</span>
               </div>
-              <span className="rate-val">Rp {rates.XLM.toLocaleString()}</span>
+              <span className="text-[1rem] font-extrabold text-indigo-600">
+                {displayCurrency === 'USD'
+                  ? `$ ${(rates.USDC > 0 ? (rates.XLM / rates.USDC) : (rates.XLM / usdToIdrRate)).toFixed(4)}`
+                  : `Rp ${rates.XLM.toLocaleString()}`}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Quick Scan Promo */}
-        <div className="promo-card" onClick={() => navigate('/scan')}>
-          <div className="promo-text">
-            <h4>Ready to pay?</h4>
-            <p>Scan any dynamic QRIS invoice to pay with Stellar assets instantly.</p>
+        <div className="bg-indigo-50 border border-dashed border-indigo-600/30 p-4 rounded-2xl flex justify-between items-center cursor-pointer transition-transform duration-200 hover:-translate-y-0.5" onClick={() => { setCurrentInvoice(null); navigate('/scan'); }}>
+          <div className="flex flex-col gap-0.5">
+            <h4 className="text-[0.9rem] font-bold text-indigo-700 m-0">Ready to pay?</h4>
+            <p className="text-[0.75rem] text-indigo-700 m-0">Scan any dynamic QRIS invoice to pay with Stellar assets instantly.</p>
           </div>
-          <ChevronRight size={24} className="promo-icon" />
+          <ChevronRight size={24} className="text-indigo-600" />
         </div>
       </div>
     );
   };
 
   const renderHistoryTab = () => {
+    if (!walletAddress) {
+      return (
+        <div className="animate-fade-in flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
+          <History size={48} className="text-slate-400" />
+          <h3 className="m-0 text-slate-900 font-bold text-[1.1rem]">No transaction history</h3>
+          <p className="m-0 text-slate-500 text-[0.9rem]">Connect your wallet to view your transaction history.</p>
+          <button className="w-full max-w-[200px] bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200" onClick={handleConnectWallet} disabled={isConnectingWallet}>
+            {isConnectingWallet ? 'Connecting...' : 'Connect Wallet'}
+          </button>
+        </div>
+      );
+    }
+
+    const filteredInvoices = invoices.filter(inv => {
+      const invNet = inv.network || 'testnet';
+      return invNet === stellarNet;
+    });
+
     return (
-      <div className="tab-content animate-fade-in">
-        <h3 className="section-title">Transaction History</h3>
-        <div className="activity-list">
-          {invoices.length === 0 ? (
-            <div className="empty-state">
+      <div className="animate-fade-in flex flex-col gap-4 pb-24">
+        <h3 className="text-[1.1rem] font-bold text-slate-900 mb-3 tracking-[-0.3px]">Transaction History</h3>
+        <div className="flex flex-col gap-3">
+          {filteredInvoices.length === 0 ? (
+            <div className="text-center py-10 px-5 text-slate-400 flex flex-col items-center gap-2">
               <History size={48} />
               <p>No transactions found.</p>
             </div>
           ) : (
-            invoices.map((inv) => (
-              <div className="activity-item" key={inv.id} onClick={() => { setCurrentInvoice(inv); navigate('/scan'); }}>
-                <div className="item-left">
-                  <div className="item-icon-wrapper">
+            filteredInvoices.map((inv) => (
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl flex justify-between items-center cursor-pointer transition-colors duration-200 hover:bg-slate-50" key={inv.id} onClick={() => { setCurrentInvoice(inv); navigate('/scan'); }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <ArrowRightLeft size={20} />
                   </div>
-                  <div className="item-details">
-                    <span className="item-merchant">{inv.merchant}</span>
-                    <span className="item-meta">{inv.city} • Ref: {inv.id}</span>
+                  <div className="flex flex-col items-start gap-1">
+                    <span className="text-[0.9rem] font-bold text-slate-900">{inv.merchant}</span>
+                    <span className="text-[0.75rem] text-slate-500">{inv.city} • Ref: {inv.id}</span>
+                    <span className={`text-[0.7rem] font-semibold px-2 py-0.5 rounded ${
+                      inv.status === 'SCANNED' ? 'bg-indigo-50 text-indigo-600' :
+                      inv.status === 'QUOTED' ? 'bg-amber-100 text-amber-800' :
+                      inv.status === 'PAYMENT_PENDING' ? 'bg-sky-100 text-sky-800' :
+                      inv.status === 'FAILED' ? 'bg-red-50 text-red-600' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {inv.status === 'SETTLED' ? 'Success' : 
+                       inv.status === 'FAILED' ? 'Failed' : 
+                       inv.status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                    </span>
                   </div>
                 </div>
-                <div className="item-right">
-                  <span className="item-amount text-danger">-Rp {inv.idrAmount.toLocaleString()}</span>
-                  <span className={`badge-status ${inv.status.toLowerCase()}`}>{inv.status}</span>
+                <div className="flex flex-col items-end justify-center">
+                  <span className="font-bold text-[0.85rem] text-slate-900">
+                    - {displayCurrency === 'USD'
+                      ? `$ ${(inv.idrAmount / usdToIdrRate).toFixed(2)}`
+                      : `Rp ${inv.idrAmount.toLocaleString()}`}
+                  </span>
                 </div>
               </div>
             ))
@@ -1407,96 +1629,255 @@ function App() {
     );
   };
 
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const tempId = "temp-qr-reader";
+      let tempDiv = document.getElementById(tempId);
+      if (!tempDiv) {
+        tempDiv = document.createElement("div");
+        tempDiv.id = tempId;
+        tempDiv.style.display = "none";
+        document.body.appendChild(tempDiv);
+      }
+
+      const html5QrCode = new Html5Qrcode(tempId);
+      const decodedText = await html5QrCode.scanFile(file, true);
+      console.log("[Gallery Scanner] Decoded QRIS:", decodedText);
+
+      const parsed = parseQRIS(decodedText);
+      const invoiceWithNetwork = {
+        ...parsed,
+        network: stellarNet
+      };
+      setCurrentInvoice(invoiceWithNetwork);
+      setQrisPayload(decodedText);
+      setPaymentStatusMessage('');
+
+      try {
+        tempDiv.remove();
+      } catch (err) { }
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to decode QR code. Please make sure the image contains a clear QR code.");
+    }
+  };
+
   const renderScanTab = () => {
-    return (
-      <div className="tab-content animate-fade-in" style={!currentInvoice ? { height: '100%', padding: 0, position: 'relative' } : undefined}>
-        {!currentInvoice ? (
-          <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#000000' }}>
+    // If showing personal receive QR code instead of scanner
+    if (showReceiveQr) {
+      const qrData = receiveAmount
+        ? `web+stellar:pay?destination=${walletAddress || ''}&amount=${receiveAmount}`
+        : walletAddress || '';
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}`;
 
-            {/* Floating Back Button */}
-            <button
-              onClick={() => navigate('/')}
-              style={{
-                position: 'absolute',
-                top: '20px',
-                left: '20px',
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                background: 'rgba(0, 0, 0, 0.5)',
-                color: 'white',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                zIndex: 10,
-                outline: 'none'
-              }}
-              title="Go Back"
-            >
-              <ArrowLeft size={20} />
+      return (
+        <div className="animate-fade-in flex flex-col gap-5 p-5 bg-white border border-slate-200 rounded-3xl shadow-sm max-w-sm mx-auto mt-4">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <h3 className="text-[1.1rem] font-bold text-slate-900 m-0">Receive Payments</h3>
+            <button className="bg-slate-100 border-none p-1.5 px-3 rounded-lg text-[0.75rem] font-bold cursor-pointer hover:bg-slate-200" onClick={() => setShowReceiveQr(false)}>
+              Back to Scanner
             </button>
-
-            {/* Camera Viewport */}
-            <div id="qr-reader" style={{ width: '100%', height: '100%', overflow: 'hidden' }}></div>
           </div>
-        ) : (
-          <div className="invoice-details-view">
-            {/* Step Indicators */}
-            <div className="steps-indicator">
-              <span className={`step ${['SCANNED', 'QUOTED'].includes(currentInvoice.status) ? 'active' : ''} ${['PAYMENT_PENDING', 'PAYMENT_CONFIRMED', 'ANCHOR_PROCESSING', 'PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status) ? 'completed' : ''}`}>1. Confirmation</span>
-              <span className={`step ${currentInvoice.status === 'PAYMENT_PENDING' ? 'active' : ''} ${['PAYMENT_CONFIRMED', 'ANCHOR_PROCESSING', 'PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status) ? 'completed' : ''}`}>2. Pay</span>
-              <span className={`step ${['PAYMENT_CONFIRMED', 'ANCHOR_PROCESSING', 'PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status) ? 'active' : ''}`}>3. Payout</span>
+
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+              <img src={qrImageUrl} alt="My QR Code" className="w-[200px] h-[200px]" />
             </div>
 
-            <div className="invoice-card">
-              <div className="invoice-header">
-                <Store size={24} className="merchant-icon" />
-                <div className="header-text">
-                  <h4>{currentInvoice.merchant}</h4>
-                  <span>{currentInvoice.city}</span>
+            <div className="w-full text-center">
+              <span className="text-[0.7rem] font-bold text-slate-400">My Wallet Address</span>
+              <code className="text-[0.75rem] font-mono break-all block bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-1 select-all cursor-pointer" title="Click to copy" onClick={() => {
+                if (walletAddress) {
+                  navigator.clipboard.writeText(walletAddress);
+                  alert("Wallet address copied to clipboard!");
+                }
+              }}>
+                {walletAddress ? `${walletAddress.slice(0, 16)}...${walletAddress.slice(-16)}` : 'Wallet not connected'}
+              </code>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[0.8rem] font-bold text-slate-700">Set Amount (Optional):</label>
+            <div className="flex items-center gap-2 border border-slate-200 p-2 px-3 rounded-xl focus-within:border-indigo-600 bg-slate-50">
+              <span className="text-slate-500 font-bold text-[0.9rem]">{displayCurrency === 'USD' ? '$' : 'Rp'}</span>
+              <input
+                type="number"
+                placeholder="0.00"
+                className="w-full bg-transparent border-none outline-none font-semibold text-[0.9rem] text-slate-900"
+                value={receiveAmount}
+                onChange={(e) => setReceiveAmount(e.target.value)}
+              />
+            </div>
+            {receiveAmount && (
+              <span className="text-[0.65rem] text-slate-400">
+                Data: {displayCurrency === 'USD' ? `$ ${receiveAmount}` : `Rp ${parseFloat(receiveAmount).toLocaleString()}`} will be encoded in the request.
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="animate-fade-in flex flex-col gap-4" style={!currentInvoice ? { height: '100%', padding: 0, position: 'relative' } : undefined}>
+        {!currentInvoice ? (
+          <div className="flex-1 flex flex-col justify-between bg-black relative animate-fade-in" style={{ width: '100%', height: '100%' }}>
+            <div className="flex-1 flex flex-col justify-center relative">
+              {/* Floating Back Button */}
+              <button
+                onClick={() => navigate('/')}
+                style={{
+                  position: 'absolute',
+                  top: '20px',
+                  left: '20px',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  color: 'white',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  zIndex: 10,
+                  outline: 'none'
+                }}
+                title="Go Back"
+              >
+                <ArrowLeft size={20} />
+              </button>
+
+              {/* Camera Viewport (Centered Square 1:1 Box) */}
+              <div className="w-full aspect-square overflow-hidden bg-black flex items-center justify-center">
+                <div id="qr-reader" className="w-full h-full"></div>
+              </div>
+            </div>
+
+            {/* Action Bar (Gallery and Generate QRIS) */}
+            <div className="p-5 bg-black border-t border-zinc-800 flex justify-around items-center w-full z-10">
+              <input
+                type="file"
+                id="gallery-input"
+                accept="image/*"
+                className="hidden"
+                onChange={handleGalleryUpload}
+              />
+              <button
+                className="flex flex-col items-center gap-1.5 bg-transparent border-none text-white cursor-pointer hover:text-[#01aed6] transition-colors"
+                onClick={() => document.getElementById('gallery-input')?.click()}
+              >
+                <div className="w-12 h-12 rounded-full bg-[#01aed6] text-white flex items-center justify-center hover:bg-[#0090b3] transition-colors">
+                  <Image size={22} />
                 </div>
-                <button className="btn-close-invoice" onClick={() => setCurrentInvoice(null)}>Reset</button>
+                <span className="text-[0.7rem] font-bold">Gallery</span>
+              </button>
+
+              <button
+                className="flex flex-col items-center gap-1.5 bg-transparent border-none text-white cursor-pointer hover:text-[#01aed6] transition-colors"
+                onClick={() => {
+                  if (!walletAddress) {
+                    alert("Please connect your Freighter wallet in the profile section first to generate your QR.");
+                    navigate('/profile');
+                  } else {
+                    setShowReceiveQr(true);
+                  }
+                }}
+              >
+                <div className="w-12 h-12 rounded-full bg-[#01aed6] text-white flex items-center justify-center hover:bg-[#0090b3] transition-colors">
+                  <QrCode size={22} />
+                </div>
+                <span className="text-[0.7rem] font-bold">My QR Code</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {/* Step Indicators */}
+            <div className="flex justify-between bg-white border border-slate-200 p-2.5 px-4 rounded-2xl">
+              <span className={`text-[0.75rem] font-bold ${['SCANNED', 'QUOTED'].includes(currentInvoice.status) ? 'text-indigo-600' : ''} ${['PAYMENT_PENDING', 'PAYMENT_CONFIRMED', 'ANCHOR_PROCESSING', 'PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status) ? 'text-emerald-600' : 'text-slate-400'}`}>1. Confirmation</span>
+              <span className={`text-[0.75rem] font-bold ${currentInvoice.status === 'PAYMENT_PENDING' ? 'text-indigo-600' : ''} ${['PAYMENT_CONFIRMED', 'ANCHOR_PROCESSING', 'PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status) ? 'text-emerald-600' : 'text-slate-400'}`}>2. Pay</span>
+              <span className={`text-[0.75rem] font-bold ${currentInvoice.status === 'SETTLED'
+                ? 'text-emerald-600'
+                : (['PAYMENT_CONFIRMED', 'ANCHOR_PROCESSING', 'PAYOUT_PROCESSING', 'SETTLEMENT_PENDING'].includes(currentInvoice.status) ? 'text-indigo-600' : 'text-slate-400')
+                }`}>3. Payout</span>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+              <div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-4">
+                <Store size={24} className="text-indigo-600" />
+                <div className="flex flex-col">
+                  <h4 className="text-[0.95rem] font-bold text-slate-900 m-0">{currentInvoice.merchant}</h4>
+                  <span className="text-[0.75rem] text-slate-500">{currentInvoice.city}</span>
+                </div>
               </div>
 
-              <div className="invoice-amount-section">
-                <span className="amount-label">IDR Invoice Amount</span>
+              <div className="text-center py-2.5">
+                <span className="text-[0.75rem] font-semibold text-slate-500">
+                  {displayCurrency === 'USD' ? 'USD Invoice Amount' : 'IDR Invoice Amount'}
+                </span>
                 {isEditingAmount ? (
-                  <div className="amount-edit-row">
-                    <span>Rp</span>
+                  <div className="flex justify-center items-center gap-1">
+                    <span>{displayCurrency === 'USD' ? '$' : 'Rp'}</span>
                     <input
                       type="number"
-                      min="1"
-                      value={currentInvoice.idrAmount || ''}
+                      step="any"
+                      min="0.01"
+                      className="text-[1.8rem] font-extrabold w-[160px] border border-indigo-600 rounded-lg text-center outline-none"
+                      value={displayCurrency === 'USD' ? parseFloat((currentInvoice.idrAmount / usdToIdrRate).toFixed(2)) || '' : currentInvoice.idrAmount || ''}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value) || 0;
-                        setCurrentInvoice(prev => prev ? { ...prev, idrAmount: val } : null);
+                        const finalIdr = displayCurrency === 'USD' ? val * usdToIdrRate : val;
+                        setCurrentInvoice(prev => prev ? { ...prev, idrAmount: finalIdr } : null);
                       }}
                       onBlur={() => setIsEditingAmount(false)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                        }
+                      }}
                       autoFocus
                     />
                   </div>
                 ) : (
                   <h2
-                    className={`amount-val ${currentInvoice.isEditableAmount ? 'editable' : ''}`}
-                    onDoubleClick={() => currentInvoice.isEditableAmount && setIsEditingAmount(true)}
-                    title={currentInvoice.isEditableAmount ? "Double click to edit" : undefined}
+                    className={`text-[1.8rem] font-extrabold tracking-[-0.5px] text-slate-900 ${currentInvoice.isEditableAmount && ['SCANNED', 'QUOTED'].includes(currentInvoice.status)
+                      ? 'border-b border-dashed border-slate-500 cursor-pointer'
+                      : ''
+                      }`}
+                    onDoubleClick={() =>
+                      currentInvoice.isEditableAmount &&
+                      ['SCANNED', 'QUOTED'].includes(currentInvoice.status) &&
+                      setIsEditingAmount(true)
+                    }
+                    title={
+                      currentInvoice.isEditableAmount && ['SCANNED', 'QUOTED'].includes(currentInvoice.status)
+                        ? "Double click to edit"
+                        : undefined
+                    }
                   >
-                    Rp {currentInvoice.idrAmount.toLocaleString()}
+                    {displayCurrency === 'USD'
+                      ? `$ ${(currentInvoice.idrAmount / usdToIdrRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : `Rp ${currentInvoice.idrAmount.toLocaleString()}`}
                   </h2>
                 )}
-                {currentInvoice.isEditableAmount && !isEditingAmount && (
-                  <span className="edit-tip">Double click amount to change</span>
-                )}
+                {currentInvoice.isEditableAmount &&
+                  ['SCANNED', 'QUOTED'].includes(currentInvoice.status) &&
+                  !isEditingAmount && (
+                    <span className="text-[0.65rem] text-slate-400 block">Double click amount to change</span>
+                  )}
               </div>
 
               {/* Quote Logic */}
               {['SCANNED', 'QUOTED'].includes(currentInvoice.status) && (
-                <div className="invoice-actions-section">
-                  <div className="quote-form" style={{ marginBottom: '15px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Select Stellar Asset</label>
-                    <select value={selectedAsset} onChange={(e) => setSelectedAsset(e.target.value)} disabled={!hasLoadedRates}>
+                <div className="flex flex-col">
+                  <div className="flex flex-col gap-1 mb-[15px]">
+                    <label className="text-[0.75rem] font-bold text-slate-500 block mb-1">Select Stellar Asset</label>
+                    <select className="w-full p-2.5 border border-slate-200 rounded-lg text-[0.9rem] outline-none focus:border-indigo-600" value={selectedAsset} onChange={(e) => setSelectedAsset(e.target.value)} disabled={!hasLoadedRates}>
                       {hasLoadedRates ? (
                         <>
                           <option value="USDC">USDC (Stellar Stablecoin)</option>
@@ -1509,24 +1890,24 @@ function App() {
                   </div>
 
                   {currentInvoice.status === 'QUOTED' && currentInvoice.total && (
-                    <div className="quote-result-box animate-fade-in" style={{ marginTop: 0 }}>
-                      <div className="quote-row">
+                    <div className="bg-indigo-50 rounded-2xl p-4 mt-[15px] flex flex-col gap-2" style={{ marginTop: 0 }}>
+                      <div className="flex justify-between text-[0.8rem] text-slate-500">
                         <span>Rate:</span>
-                        <strong>Rp {currentInvoice.rate?.toLocaleString()}</strong>
+                        <strong className="text-slate-900">Rp {currentInvoice.rate?.toLocaleString()}</strong>
                       </div>
-                      <div className="quote-row">
+                      <div className="flex justify-between text-[0.8rem] text-slate-500">
                         <span>Crypto Amount:</span>
-                        <span>{currentInvoice.cryptoAmount?.toFixed(4)} {currentInvoice.assetCode}</span>
+                        <span className="text-slate-900">{currentInvoice.cryptoAmount?.toFixed(4)} {currentInvoice.assetCode}</span>
                       </div>
-                      <div className="quote-row">
+                      <div className="flex justify-between text-[0.8rem] text-slate-500">
                         <span>Bridge Fee (1%):</span>
-                        <span>{currentInvoice.fee?.toFixed(4)} {currentInvoice.assetCode}</span>
+                        <span className="text-slate-900">{currentInvoice.fee?.toFixed(4)} {currentInvoice.assetCode}</span>
                       </div>
-                      <div className="quote-row total">
+                      <div className="flex justify-between border-t border-indigo-100 pt-2 mt-1 text-slate-900 text-[0.95rem]">
                         <span>Total Due:</span>
-                        <strong>{currentInvoice.total?.toFixed(4)} {currentInvoice.assetCode}</strong>
+                        <strong className="font-bold">{currentInvoice.total?.toFixed(4)} {currentInvoice.assetCode}</strong>
                       </div>
-                      <button className="btn-primary w-100 mt-15" onClick={handleAcceptQuote}>Confirm & Pay Invoice</button>
+                      <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200 mt-4" onClick={handleAcceptQuote}>Confirm & Pay Invoice</button>
                     </div>
                   )}
                 </div>
@@ -1534,29 +1915,29 @@ function App() {
 
               {/* Payment Section */}
               {currentInvoice.status === 'PAYMENT_PENDING' && currentInvoice.total && (
-                <div className="payment-instructions animate-fade-in">
-                  <div className="warning-box">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                  <div className="flex gap-2 text-emerald-800 text-[0.75rem] font-semibold mb-3">
                     <AlertCircle size={20} />
                     <span>Send exactly the amount below with the specified Memo ID.</span>
                   </div>
 
-                  <div className="instruction-details">
-                    <div className="inst-row">
+                  <div className="flex flex-col gap-2 bg-white p-3 rounded-lg border border-dashed border-emerald-200 mb-[15px]">
+                    <div className="flex flex-col gap-0.5 text-[0.75rem] text-slate-500">
                       <span>Destination Address:</span>
-                      <code className="address-code">{stellarPublicKey.slice(0, 10)}...{stellarPublicKey.slice(-10)}</code>
+                      <code className="bg-slate-100 p-1 rounded font-mono break-all">{stellarPublicKey.slice(0, 10)}...{stellarPublicKey.slice(-10)}</code>
                     </div>
-                    <div className="inst-row">
+                    <div className="flex flex-col gap-0.5 text-[0.75rem] text-slate-500">
                       <span>Memo ID (Invoice Ref):</span>
-                      <code>{currentInvoice.id}</code>
+                      <code className="bg-slate-100 p-1 rounded font-mono">{currentInvoice.id}</code>
                     </div>
-                    <div className="inst-row total">
+                    <div className="flex-row justify-between border-t border-emerald-50 pt-2 text-[0.9rem] text-emerald-800 flex items-center">
                       <span>Amount:</span>
                       <strong>{currentInvoice.total?.toFixed(4)} {currentInvoice.assetCode}</strong>
                     </div>
                   </div>
 
-                  <div className="payment-action-buttons" style={{ marginTop: '15px' }}>
-                    <button className="btn-primary w-100" onClick={handleAutoPayStellar} disabled={checkingPayment}>
+                  <div className="mt-[15px]">
+                    <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200" onClick={handleAutoPayStellar} disabled={checkingPayment}>
                       {checkingPayment ? 'Processing...' : walletAddress ? 'Pay' : 'Simulate Auto-Pay (Escrow)'}
                     </button>
                   </div>
@@ -1565,46 +1946,56 @@ function App() {
 
               {/* Settlement Progress / Status */}
               {['PAYMENT_CONFIRMED', 'ANCHOR_PROCESSING', 'PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status) && (
-                <div className="settlement-progress animate-fade-in">
-                  <div className="success-header">
-                    <CheckCircle2 size={32} className="success-icon" />
-                    <h4>Stellar Payment Verified!</h4>
-                    <p>On-chain payment verified successfully via transaction memo.</p>
+                <div className="py-2.5">
+                  <div className="text-center mb-5 flex flex-col items-center">
+                    <CheckCircle2 size={32} className="text-emerald-600 mb-2" />
+                    <h4 className="text-[1rem] font-bold text-emerald-800 m-0">Stellar Payment Verified!</h4>
+                    <p className="text-[0.75rem] text-slate-500 mt-1">On-chain payment verified successfully.</p>
                   </div>
 
-                  <div className="progress-timeline">
-                    <div className={`timeline-step ${['ANCHOR_PROCESSING', 'PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status) ? 'active' : ''} ${currentInvoice.anchorStatus === 'SETTLED_FIAT_AVAILABLE' ? 'completed' : ''}`}>
-                      <div className="step-bullet"></div>
-                      <div className="step-info">
-                        <h5>Anchor Off-ramp Redemption</h5>
-                        <p>{currentInvoice.status === 'ANCHOR_PROCESSING' ? 'Processing on-chain conversion...' : 'Fiat cash-out completed'}</p>
+                  <div className="flex flex-col gap-5 relative pl-5">
+                    <div className="relative">
+                      {/* Vertical line connecting Step 1 to Step 2 */}
+                      <div className={`absolute -left-[16px] top-3.5 bottom-[-24px] w-[2px] ${['PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status)
+                        ? 'bg-indigo-600'
+                        : 'bg-slate-200'
+                        }`}></div>
+                      <div className={`absolute -left-[20px] top-1 w-2.5 h-2.5 rounded-full border-2 ${['PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status)
+                        ? 'bg-indigo-600 border-indigo-600'
+                        : (currentInvoice.status === 'ANCHOR_PROCESSING' ? 'bg-white border-indigo-600' : 'bg-white border-slate-300')
+                        }`}></div>
+                      <div className="flex flex-col gap-1">
+                        <h5 className="text-[0.85rem] font-bold text-slate-900 m-0">Anchor Off-ramp Redemption</h5>
+                        <p className="text-[0.75rem] text-slate-500 m-0">{currentInvoice.status === 'ANCHOR_PROCESSING' ? 'Processing on-chain conversion...' : 'Fiat cash-out completed'}</p>
                         {currentInvoice.anchorTxHash && (
-                          <a href={`${netConfig.explorerBase}/${currentInvoice.anchorTxHash}`} target="_blank" rel="noreferrer" className="tx-link">
+                          <a href={`${netConfig.explorerBase}/${currentInvoice.anchorTxHash}`} target="_blank" rel="noreferrer" className="text-[0.7rem] text-indigo-600 no-underline inline-flex items-center gap-0.5 mt-1">
                             View Anchor RedTx <ExternalLink size={12} />
                           </a>
                         )}
                       </div>
                     </div>
 
-                    <div className={`timeline-step ${['PAYOUT_PROCESSING', 'SETTLEMENT_PENDING', 'SETTLED'].includes(currentInvoice.status) ? 'active' : ''} ${currentInvoice.status === 'SETTLED' ? 'completed' : ''}`}>
-                      <div className="step-bullet"></div>
-                      <div className="step-info">
-                        <h5>Merchant Bank Settlement</h5>
-                        <p>
+                    <div className="relative">
+                      <div className={`absolute -left-[20px] top-1 w-2.5 h-2.5 rounded-full border-2 ${currentInvoice.status === 'SETTLED'
+                        ? 'bg-indigo-600 border-indigo-600'
+                        : (['PAYOUT_PROCESSING', 'SETTLEMENT_PENDING'].includes(currentInvoice.status) ? 'bg-white border-indigo-600' : 'bg-white border-slate-300')
+                        }`}></div>
+                      <div className="flex flex-col gap-1">
+                        <h5 className="text-[0.85rem] font-bold text-slate-900 m-0">Merchant Bank Settlement</h5>
+                        <p className="text-[0.75rem] text-slate-500 m-0">
                           {currentInvoice.status === 'SETTLED' ? 'Merchant settled' :
                             (currentInvoice.status === 'SETTLEMENT_PENDING' ? 'Awaiting checkout payment completion...' :
                               'Creating settlement invoice...')}
                         </p>
                         {currentInvoice.mayarSettlementPaymentUrl && currentInvoice.status === 'SETTLEMENT_PENDING' && (
-                          <div className="action-box">
-                            <a href={currentInvoice.mayarSettlementPaymentUrl} target="_blank" rel="noreferrer" className="btn-payout-link">
+                          <div className="flex gap-2 mt-2">
+                            <a href={currentInvoice.mayarSettlementPaymentUrl} target="_blank" rel="noreferrer" className="bg-indigo-600 text-white no-underline py-1.5 px-3 rounded font-bold text-[0.75rem] inline-flex items-center gap-1">
                               Pay Merchant Invoice via Mayar <ExternalLink size={14} />
                             </a>
-                            <button className="btn-payout-simulate" onClick={handleSimulateMayarSuccess}>Simulate Paid</button>
                           </div>
                         )}
                         {currentInvoice.mayarSettlementInvoiceId && (
-                          <span className="meta-text">Mayar Invoice Ref: {currentInvoice.mayarSettlementInvoiceId}</span>
+                          <span className="text-[0.65rem] text-slate-400 block mt-1">Mayar Invoice Ref: {currentInvoice.mayarSettlementInvoiceId}</span>
                         )}
                       </div>
                     </div>
@@ -1619,54 +2010,78 @@ function App() {
   };
 
   const renderTokensTab = () => {
+    if (!walletAddress) {
+      return (
+        <div className="animate-fade-in flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
+          <Coins size={48} className="text-slate-400" />
+          <h3 className="m-0 text-slate-900 font-bold text-[1.1rem]">No assets to show</h3>
+          <p className="m-0 text-slate-500 text-[0.9rem]">Connect your Freighter wallet to view your crypto assets.</p>
+          <button className="w-full max-w-[200px] bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200" onClick={handleConnectWallet} disabled={isConnectingWallet}>
+            {isConnectingWallet ? 'Connecting...' : 'Connect Wallet'}
+          </button>
+        </div>
+      );
+    }
+
     const hasLoadedRates = rates.USDC > 0 && rates.XLM > 0;
-    const usdcEstIdr = hasLoadedRates ? (100 * rates.USDC) : 1500000;
-    const xlmEstIdr = hasLoadedRates ? (0 * rates.XLM) : 0;
+    const usdcVal = parseFloat(usdcBalance) || 0;
+    const xlmVal = parseFloat(xlmBalance) || 0;
+    const usdcEstIdr = hasLoadedRates ? (usdcVal * rates.USDC) : (usdcVal * usdToIdrRate);
+    const xlmEstIdr = hasLoadedRates ? (xlmVal * rates.XLM) : 0;
     const totalEstIdr = usdcEstIdr + xlmEstIdr;
+    const totalEstUsd = hasLoadedRates ? (totalEstIdr / rates.USDC) : (usdcVal + (xlmVal * 0.1823));
 
     return (
-      <div className="tab-content animate-fade-in">
-        <h3 className="section-title">Crypto Assets</h3>
-        <p className="section-desc">Manage and monitor your Stellar stablecoins and tokens.</p>
-
-        {/* Dynamic flat card */}
-        <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '20px', marginBottom: '24px', border: '1px solid #e2e8f0' }}>
-          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated Balance</span>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a' }}>Rp {totalEstIdr.toLocaleString()}</h2>
+      <div className="animate-fade-in flex flex-col gap-4">
+        <div>
+          <h3 className="text-[1.1rem] font-bold text-slate-900 mb-2 tracking-[-0.3px]">Crypto Assets</h3>
+          <p className="text-[0.85rem] text-slate-500">Manage and monitor your Stellar stablecoins and tokens.</p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* Dynamic flat card */}
+        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+          <span className="text-[0.8rem] text-slate-500 font-bold block mb-1">Estimated Balance</span>
+          <h2 className="text-[1.8rem] font-extrabold text-slate-900 m-0">
+            {displayCurrency === 'USD'
+              ? `$ ${totalEstUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : `Rp ${totalEstIdr.toLocaleString()}`}
+          </h2>
+        </div>
+
+        <div className="flex flex-col gap-3">
           {/* USDC asset card */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#4f46e5' }}>
-                U
-              </div>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>USD Coin</h4>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>USDC Stablecoin</span>
+          <div className="flex justify-between items-center p-4 bg-white rounded-2xl border border-slate-200">
+            <div className="flex items-center gap-3">
+              <img src="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/usdc.png" alt="USDC Logo" className="w-10 h-10 rounded-full" />
+              <div className="flex flex-col">
+                <h4 className="m-0 text-[0.95rem] font-bold text-slate-900">USD Coin</h4>
+                <span className="text-[0.75rem] text-slate-500">USDC Stablecoin</span>
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>100.00 USDC</div>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Rp {usdcEstIdr.toLocaleString()}</span>
+            <div className="text-right">
+              <div className="font-bold text-[0.95rem] text-slate-900">{usdcVal.toFixed(2)} USDC</div>
+              <span className="text-[0.75rem] text-slate-500">
+                {displayCurrency === 'USD' ? `$ ${usdcVal.toFixed(2)}` : `Rp ${usdcEstIdr.toLocaleString()}`}
+              </span>
             </div>
           </div>
 
           {/* XLM asset card */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#d97706' }}>
-                X
-              </div>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>Stellar Lumens</h4>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>XLM Native</span>
+          <div className="flex justify-between items-center p-4 bg-white rounded-2xl border border-slate-200">
+            <div className="flex items-center gap-3">
+              <img src="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/black/xlm.png" alt="XLM Logo" className="w-10 h-10 rounded-full" />
+              <div className="flex flex-col">
+                <h4 className="m-0 text-[0.95rem] font-bold text-slate-900">Stellar Lumens</h4>
+                <span className="text-[0.75rem] text-slate-500">XLM Native</span>
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>0.00 XLM</div>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Rp {xlmEstIdr.toLocaleString()}</span>
+            <div className="text-right">
+              <div className="font-bold text-[0.95rem] text-slate-900">{xlmVal.toFixed(2)} XLM</div>
+              <span className="text-[0.75rem] text-slate-500">
+                {displayCurrency === 'USD'
+                  ? `$ ${(rates.USDC > 0 ? (xlmVal * rates.XLM / rates.USDC) : (xlmVal * 0.1823)).toFixed(2)}`
+                  : `Rp ${xlmEstIdr.toLocaleString()}`}
+              </span>
             </div>
           </div>
         </div>
@@ -1676,91 +2091,114 @@ function App() {
 
   const renderProfileTab = () => {
     return (
-      <div className="tab-content animate-fade-in">
-        <h3 className="section-title">Wallet & Configurations</h3>
+      <div className="animate-fade-in flex flex-col gap-6">
+        <h3 className="text-[1.1rem] font-bold text-slate-900 mb-3 tracking-[-0.3px]">Wallet & Configurations</h3>
 
-        <div className="card-setting">
+        <div className="bg-white border border-slate-200 p-4 rounded-2xl">
           {walletAddress ? (
-            <div className="wallet-connected-box">
-              <div className="wallet-meta">
+            <div className="flex flex-col gap-4 bg-indigo-50 p-4 rounded-lg">
+              <div className="flex items-center gap-2 text-indigo-600">
                 <Wallet size={36} />
-                <div className="wallet-text">
-                  <span className="wallet-state">Connected</span>
-                  <code className="wallet-addr">{walletAddress.slice(0, 12)}...{walletAddress.slice(-12)}</code>
+                <div className="flex flex-col">
+                  <span className="text-[0.65rem] font-bold uppercase">Connected</span>
+                  <code className="text-[0.75rem] font-mono break-all">{walletAddress.slice(0, 12)}...{walletAddress.slice(-12)}</code>
                 </div>
               </div>
-              <button className="btn-disconnect" onClick={() => { setWalletAddress(null); setWalletNetwork(null); }}>
+              <button className="w-full bg-red-50 text-red-600 border border-red-100 p-2.5 rounded-lg text-[0.8rem] font-bold cursor-pointer transition-colors duration-200 text-center hover:bg-red-600 hover:text-white" onClick={() => {
+                setWalletAddress(null);
+                setWalletNetwork(null);
+                localStorage.setItem('lintas_wallet_disconnected', 'true');
+              }}>
                 Disconnect Wallet
               </button>
             </div>
           ) : (
-            <button className="btn-connect-wallet" onClick={handleConnectWallet} disabled={isConnectingWallet}>
+            <button className="w-full bg-indigo-600 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer hover:bg-indigo-700" onClick={handleConnectWallet} disabled={isConnectingWallet}>
               {isConnectingWallet ? 'Connecting...' : 'Connect Freighter Wallet'}
             </button>
           )}
         </div>
 
-        <div className="card-setting mt-15">
-          <h4>Environment Configurations</h4>
-          <div className="config-row">
-            <span>Stellar Network:</span>
-            <select value={stellarNet} onChange={(e) => setStellarNet(e.target.value as 'testnet' | 'mainnet')}>
-              <option value="testnet">Testnet</option>
-              <option value="mainnet">Mainnet</option>
-            </select>
+        {walletAddress && (
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl flex flex-col gap-4">
+            <h4 className="text-[0.9rem] text-slate-900 font-bold m-0">Environment Configurations</h4>
+            <div className="flex justify-between items-center text-[0.85rem]">
+              <span>Network Environment:</span>
+              {walletAddress ? (
+                <span className="font-bold text-slate-800 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-lg text-[0.8rem] inline-flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  {stellarNet === 'mainnet' ? 'Mainnet' : 'Testnet'}
+                </span>
+              ) : (
+                <select
+                  className="w-[160px] p-1.5 px-2.5 border border-slate-200 rounded-lg outline-none focus:border-indigo-600"
+                  value={stellarNet}
+                  onChange={(e) => {
+                    const network = e.target.value as 'testnet' | 'mainnet';
+                    setStellarNet(network);
+                    setMayarEnv(network === 'mainnet' ? 'production' : 'sandbox');
+                  }}
+                >
+                  <option value="testnet">Testnet</option>
+                  <option value="mainnet">Mainnet</option>
+                </select>
+              )}
+            </div>
+            <div className="flex justify-between items-center text-[0.85rem]">
+              <span>Display Currency:</span>
+              <select className="w-[160px] p-1.5 px-2.5 border border-slate-200 rounded-lg outline-none focus:border-indigo-600" value={displayCurrency} onChange={(e) => setDisplayCurrency(e.target.value as 'USD' | 'IDR')}>
+                <option value="IDR">IDR (Rp)</option>
+                <option value="USD">USD ($)</option>
+              </select>
+            </div>
           </div>
-          <div className="config-row">
-            <span>Mayar Environment:</span>
-            <select value={mayarEnv} onChange={(e) => setMayarEnv(e.target.value as 'sandbox' | 'production')}>
-              <option value="sandbox">Sandbox (Testing)</option>
-              <option value="production">Production</option>
-            </select>
-          </div>
-        </div>
+        )}
       </div>
     );
   };
 
   if (isFaucetPage) {
     return (
-      <div className="app-container">
-        <div className="mobile-shell">
-          <header className="mobile-header">
-            <div className="header-branding">
-              <Wallet className="branding-logo" size={24} />
-              <h1 className="branding-title">USDC Faucet</h1>
+      <div className="flex justify-center items-center w-screen h-screen">
+        <div className="w-full max-w-[425px] h-screen max-h-[860px] bg-slate-50 relative flex flex-col overflow-hidden max-[480px]:max-h-screen">
+          <header className="h-[72px] px-6 flex justify-between items-center bg-white border-b border-slate-200 z-10">
+            <div className="flex items-center gap-2">
+              <Wallet className="text-indigo-600" size={24} />
+              <h1 className="text-[1.25rem] font-extrabold text-slate-900 tracking-[-0.5px] m-0">USDC Faucet</h1>
             </div>
-            <button className="btn-close-invoice" onClick={() => navigate('/')}>Back</button>
+            <button className="bg-slate-100 border-none py-1.5 px-3 rounded-md font-bold text-[0.75rem] cursor-pointer" onClick={() => navigate('/')}>Back</button>
           </header>
 
-          <main className="mobile-main">
-            <div className="tab-content animate-fade-in">
-              <h3 className="section-title">Stellar Testnet USDC Faucet</h3>
-              <p className="section-desc">Request test tokens directly into your connected Freighter wallet.</p>
+          <main className="flex-1 overflow-y-auto p-5 pb-[90px] scroll-smooth">
+            <div className="animate-fade-in flex flex-col gap-6">
+              <div>
+                <h3 className="text-[1.1rem] font-bold text-slate-900 mb-3 tracking-[-0.3px] m-0">Stellar Testnet USDC Faucet</h3>
+                <p className="text-[0.85rem] text-slate-500 mt-1">Request test tokens directly into your connected Freighter wallet.</p>
+              </div>
 
-              <div className="card-setting">
-                <h4>Faucet Dispenser</h4>
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl">
+                <h4 className="text-[0.9rem] text-slate-900 font-bold mb-3 mt-0">Faucet Dispenser</h4>
                 {walletAddress ? (
                   <div>
-                    <div className="wallet-connected-box" style={{ marginBottom: '15px' }}>
-                      <div className="wallet-meta">
+                    <div className="flex flex-col gap-4 bg-indigo-50 p-4 rounded-lg mb-4">
+                      <div className="flex items-center gap-2 text-indigo-600">
                         <Wallet size={36} />
-                        <div className="wallet-text">
-                          <span className="wallet-state">Target Wallet</span>
-                          <code className="wallet-addr">{walletAddress.slice(0, 12)}...{walletAddress.slice(-12)}</code>
+                        <div className="flex flex-col">
+                          <span className="text-[0.65rem] font-bold uppercase">Target Wallet</span>
+                          <code className="text-[0.75rem] font-mono break-all">{walletAddress.slice(0, 12)}...{walletAddress.slice(-12)}</code>
                         </div>
                       </div>
                     </div>
-                    <button className="btn-primary w-100" onClick={handleSwapXLMToUSDC} disabled={checkingPayment}>
+                    <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200" onClick={handleSwapXLMToUSDC} disabled={checkingPayment}>
                       {checkingPayment ? 'Processing Faucet...' : 'Get 100 USDC Testnet'}
                     </button>
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                    <p style={{ marginBottom: '15px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    <p style={{ marginBottom: '15px', color: '#64748b', fontSize: '0.85rem' }}>
                       Please connect your Freighter wallet in the profile section to receive test tokens.
                     </p>
-                    <button className="btn-primary w-100" onClick={() => navigate('/profile')}>
+                    <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200" onClick={() => navigate('/profile')}>
                       Go to Connect Wallet
                     </button>
                   </div>
@@ -1768,9 +2206,9 @@ function App() {
               </div>
 
               {paymentStatusMessage && (
-                <div className="status-log-card animate-fade-in mt-15">
-                  <h5>Log Console</h5>
-                  <pre>{paymentStatusMessage}</pre>
+                <div className="bg-slate-800 text-sky-400 p-3 rounded-2xl mt-4 animate-fade-in">
+                  <h5 className="text-white text-[0.75rem] mb-1.5 mt-0">Log Console</h5>
+                  <pre className="font-mono text-[0.65rem] whitespace-pre-wrap bg-none border-none p-0 m-0">{paymentStatusMessage}</pre>
                 </div>
               )}
             </div>
@@ -1783,19 +2221,11 @@ function App() {
   const isScanningActive = activeTab === 'scan' && !currentInvoice;
 
   return (
-    <div className="app-container">
+    <div className="flex justify-center items-center w-screen h-screen bg-black">
       {/* Mobile Shell Frame */}
-      <div className="mobile-shell" style={isScanningActive ? { overflow: 'hidden' } : undefined}>
-        {!isScanningActive && (
-          <header className="mobile-header">
-            <div className="header-branding">
-              <Wallet className="branding-logo" size={24} />
-              <h1 className="branding-title">Lintas</h1>
-            </div>
-          </header>
-        )}
+      <div className="w-full max-w-[425px] h-screen max-h-[860px] bg-slate-50 relative flex flex-col overflow-hidden max-[480px]:max-h-screen" style={isScanningActive ? { overflow: 'hidden' } : undefined}>
 
-        <main className="mobile-main" style={isScanningActive ? { padding: 0, paddingBottom: 0, overflow: 'hidden', height: '100%' } : undefined}>
+        <main className="flex-1 overflow-y-auto p-5 pb-[90px] scroll-smooth" style={isScanningActive ? { padding: 0, paddingBottom: 0, overflow: 'hidden', height: '100%' } : undefined}>
           {activeTab === 'home' && renderHomeTab()}
           {activeTab === 'tokens' && renderTokensTab()}
           {activeTab === 'scan' && renderScanTab()}
@@ -1804,28 +2234,27 @@ function App() {
         </main>
 
         {!isScanningActive && (
-          <nav className="mobile-navbar">
-            <button className={`nav-tab-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => navigate('/')}>
+          <nav className="absolute bottom-0 left-0 w-full h-20 bg-white/90 backdrop-blur-md border-t border-slate-200 grid grid-cols-[1fr_1fr_64px_1fr_1fr] items-center px-2 z-20">
+            <button className={`bg-transparent border-none outline-none flex flex-col items-center gap-1 cursor-pointer transition-all duration-200 text-[0.7rem] font-semibold ${activeTab === 'home' ? 'text-indigo-600' : 'text-slate-500 hover:text-indigo-600'}`} onClick={() => navigate('/')}>
               <Home size={22} />
               <span>Home</span>
             </button>
-            <button className={`nav-tab-btn ${activeTab === 'tokens' ? 'active' : ''}`} onClick={() => navigate('/tokens')}>
+            <button className={`bg-transparent border-none outline-none flex flex-col items-center gap-1 cursor-pointer transition-all duration-200 text-[0.7rem] font-semibold ${activeTab === 'tokens' ? 'text-indigo-600' : 'text-slate-500 hover:text-indigo-600'}`} onClick={() => navigate('/tokens')}>
               <Coins size={22} />
               <span>Tokens</span>
             </button>
 
-            <div className="nav-center-action">
-              <button className={`btn-center-scan ${activeTab === 'scan' ? 'active' : ''}`} onClick={() => { setCurrentInvoice(null); navigate('/scan'); }}>
-                <QrCode size={26} />
+            <div className="relative flex flex-col items-center -mt-16">
+              <button className={`w-[72px] h-[72px] rounded-full text-white border border-slate-200 cursor-pointer flex items-center justify-center transition-all duration-200 hover:bg-indigo-700 ${activeTab === 'scan' ? 'bg-indigo-700' : 'bg-indigo-600'}`} onClick={() => { setCurrentInvoice(null); navigate('/scan'); }}>
+                <QrCode size={32} />
               </button>
-              <span className="scan-label">Scan</span>
             </div>
 
-            <button className={`nav-tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => navigate('/history')}>
+            <button className={`bg-transparent border-none outline-none flex flex-col items-center gap-1 cursor-pointer transition-all duration-200 text-[0.7rem] font-semibold ${activeTab === 'history' ? 'text-indigo-600' : 'text-slate-500 hover:text-indigo-600'}`} onClick={() => navigate('/history')}>
               <History size={22} />
               <span>History</span>
             </button>
-            <button className={`nav-tab-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => navigate('/profile')}>
+            <button className={`bg-transparent border-none outline-none flex flex-col items-center gap-1 cursor-pointer transition-all duration-200 text-[0.7rem] font-semibold ${activeTab === 'profile' ? 'text-indigo-600' : 'text-slate-500 hover:text-indigo-600'}`} onClick={() => navigate('/profile')}>
               <User size={22} />
               <span>Profile</span>
             </button>
