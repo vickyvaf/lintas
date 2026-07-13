@@ -204,13 +204,13 @@ function App() {
 
   useEffect(() => {
     // 1. Detect if running in standalone mode (already installed PWA)
-    const checkStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches || 
+    const checkStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as any).standalone === true;
     setIsStandalone(checkStandalone);
 
     // 2. Detect if device is a mobile or tablet
-    const checkMobileOrTablet = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 
+    const checkMobileOrTablet = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ||
       (navigator.maxTouchPoints > 0 && /Macintosh|Intel/i.test(navigator.userAgent));
     setIsMobileOrTablet(checkMobileOrTablet);
 
@@ -233,7 +233,7 @@ function App() {
       console.log(`User response to the PWA install prompt: ${outcome}`);
       setDeferredPrompt(null);
     } else {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
         (navigator.userAgent.includes("Mac") && "ontouchend" in document);
       if (isIOS) {
         alert("To install Lintas on iOS:\n1. Tap the Share button in Safari (bottom navigation bar)\n2. Select 'Add to Home Screen'\n3. Tap 'Add' to confirm.");
@@ -1030,7 +1030,7 @@ function App() {
       const entropy = crypto.getRandomValues(new Uint8Array(16));
       const seedPhrase = entropyToMnemonic(entropy);
       const seed = await mnemonicToSeed(seedPhrase);
-      
+
       const keypair = StellarSdk.Keypair.fromRawEd25519Seed(seed as any);
       const pubKey = keypair.publicKey();
       const secKey = keypair.secret();
@@ -1124,7 +1124,7 @@ function App() {
     if (!walletAddress) return;
     setCheckingPayment(true);
     setPaymentStatusMessage("Initiating XLM to USDC swap...");
-    
+
     let usingFreighter = true;
     let secretKeyToUse = '';
     if (isEmbeddedWallet && embeddedSecretKey) {
@@ -2212,8 +2212,8 @@ function App() {
                       </p>
                     </div>
                   </div>
-                  <button 
-                    className="w-full bg-slate-900 hover:bg-black text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200 mt-2" 
+                  <button
+                    className="w-full bg-slate-900 hover:bg-black text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200 mt-2"
                     onClick={() => {
                       // Reset invoice back to PAYMENT_PENDING so they can retry
                       setCurrentInvoice(prev => prev ? { ...prev, status: 'PAYMENT_PENDING' as any } : null);
@@ -2388,7 +2388,7 @@ function App() {
             <div className="flex items-center gap-2 text-indigo-600">
               <Wallet size={36} />
               <div className="flex flex-col">
-                <span className="text-[0.65rem] font-bold uppercase">{isEmbeddedWallet ? 'Embedded Wallet' : 'Freighter Wallet'}</span>
+                <span className="text-[0.65rem] font-bold">{isEmbeddedWallet ? 'Embedded Wallet' : 'Freighter Wallet'}</span>
                 <code className="text-[0.75rem] font-mono break-all">{walletAddress.slice(0, 12)}...{walletAddress.slice(-12)}</code>
               </div>
             </div>
@@ -2396,9 +2396,9 @@ function App() {
               <div className="flex flex-col gap-2 text-left w-full">
                 {embeddedSeedPhrase && embeddedSeedPhrase !== 'Direct Secret Key Import' && (
                   <div className="flex flex-col gap-1.5 p-2.5 rounded border border-slate-200 bg-white">
-                    <div className="flex justify-between items-center text-[0.7rem] text-slate-400 font-bold uppercase tracking-wider">
+                    <div className="flex justify-between items-center text-[0.75rem] text-slate-500 font-bold">
                       <span>Seed Phrase</span>
-                      <button 
+                      <button
                         className="bg-transparent border-none text-indigo-600 font-bold cursor-pointer text-[0.7rem] hover:underline outline-none"
                         onClick={(e) => { e.stopPropagation(); setShowSeedPhrase(!showSeedPhrase); }}
                       >
@@ -2412,15 +2412,15 @@ function App() {
                       </div>
                     ) : (
                       <div className="text-[0.7rem] text-slate-400 font-mono mt-1 select-none">
-                        ••••••••••••••••••••••••••••••••••••••••
+                        ••••••••••••••••
                       </div>
                     )}
                   </div>
                 )}
                 <div className="flex flex-col gap-1.5 p-2.5 rounded border border-slate-200 bg-white">
-                  <div className="flex justify-between items-center text-[0.7rem] text-slate-400 font-bold uppercase tracking-wider">
+                  <div className="flex justify-between items-center text-[0.75rem] text-slate-500 font-bold">
                     <span>Secret Key</span>
-                    <button 
+                    <button
                       className="bg-transparent border-none text-indigo-600 font-bold cursor-pointer text-[0.7rem] hover:underline outline-none"
                       onClick={(e) => { e.stopPropagation(); setShowSecretKey(!showSecretKey); }}
                     >
@@ -2433,8 +2433,8 @@ function App() {
                       <span className="block text-[0.55rem] text-slate-400 mt-1 font-bold">✓ Click to Copy Secret Key (starts with S)</span>
                     </div>
                   ) : (
-                    <div className="text-[0.7rem] text-slate-400 font-mono mt-1 select-none">
-                      {embeddedSecretKey ? `${embeddedSecretKey.slice(0, 4)}••••••••••••••••••••••••••••••••••••••••` : ''}
+                    <div className="text-[0.7rem] text-slate-400 font-mono mt-1 select-none font-medium">
+                      {embeddedSecretKey ? `${embeddedSecretKey.slice(0, 4)}••••••••••••` : ''}
                     </div>
                   )}
                 </div>
@@ -2530,7 +2530,7 @@ function App() {
                       <div className="flex items-center gap-2 text-indigo-600">
                         <Wallet size={36} />
                         <div className="flex flex-col">
-                          <span className="text-[0.65rem] font-bold uppercase">Target Wallet</span>
+                          <span className="text-[0.65rem] font-bold">Target Wallet</span>
                           <code className="text-[0.75rem] font-mono break-all">{walletAddress.slice(0, 12)}...{walletAddress.slice(-12)}</code>
                         </div>
                       </div>
@@ -2622,7 +2622,7 @@ function App() {
               </div>
 
               <div className="flex flex-col items-center py-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <span className="text-[0.75rem] font-bold text-slate-400 uppercase tracking-wider">Amount to Send</span>
+                <span className="text-[0.75rem] font-bold text-slate-400 tracking-wider">Amount to Send</span>
                 <span className="text-[2.2rem] font-black text-slate-900 leading-none mt-2">
                   {currentInvoice.total?.toFixed(4)} <span className="text-[1.2rem] font-bold text-slate-500">{currentInvoice.assetCode}</span>
                 </span>
