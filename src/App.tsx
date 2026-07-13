@@ -194,6 +194,8 @@ function App() {
     return localStorage.getItem('lintas_embedded_seed_phrase');
   });
   const [showConfirmEmbeddedModal, setShowConfirmEmbeddedModal] = useState<boolean>(false);
+  const [showSeedPhrase, setShowSeedPhrase] = useState<boolean>(false);
+  const [showSecretKey, setShowSecretKey] = useState<boolean>(false);
 
   // PWA Installation States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -2378,7 +2380,7 @@ function App() {
     }
 
     return (
-      <div className="animate-fade-in flex flex-col gap-6">
+      <div className="animate-fade-in flex flex-col gap-6 pb-28">
         <h3 className="text-[1.1rem] font-bold text-slate-900 mb-3 tracking-[-0.3px]">Wallet & Configurations</h3>
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl">
@@ -2391,16 +2393,50 @@ function App() {
               </div>
             </div>
             {isEmbeddedWallet && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 text-left w-full">
                 {embeddedSeedPhrase && embeddedSeedPhrase !== 'Direct Secret Key Import' && (
-                  <div className="text-[0.7rem] text-slate-600 font-mono bg-white p-2.5 rounded border border-slate-200 select-all cursor-pointer break-all" title="Click to copy your Seed Phrase" onClick={() => { navigator.clipboard.writeText(embeddedSeedPhrase || ''); alert('Seed Phrase copied to clipboard!'); }}>
-                    <strong>Seed Phrase:</strong> {embeddedSeedPhrase}
-                    <span className="block text-[0.6rem] text-indigo-600 mt-1 font-bold">✓ Click to Copy 12-Word Seed Phrase</span>
+                  <div className="flex flex-col gap-1.5 p-2.5 rounded border border-slate-200 bg-white">
+                    <div className="flex justify-between items-center text-[0.7rem] text-slate-400 font-bold uppercase tracking-wider">
+                      <span>Seed Phrase</span>
+                      <button 
+                        className="bg-transparent border-none text-indigo-600 font-bold cursor-pointer text-[0.7rem] hover:underline outline-none"
+                        onClick={(e) => { e.stopPropagation(); setShowSeedPhrase(!showSeedPhrase); }}
+                      >
+                        {showSeedPhrase ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                    {showSeedPhrase ? (
+                      <div className="text-[0.7rem] text-slate-700 font-mono break-all select-all cursor-pointer mt-1" onClick={() => { navigator.clipboard.writeText(embeddedSeedPhrase || ''); alert('Seed Phrase copied to clipboard!'); }}>
+                        {embeddedSeedPhrase}
+                        <span className="block text-[0.55rem] text-indigo-600 mt-1 font-bold">✓ Click to Copy 12-Word Seed Phrase</span>
+                      </div>
+                    ) : (
+                      <div className="text-[0.7rem] text-slate-400 font-mono mt-1 select-none">
+                        ••••••••••••••••••••••••••••••••••••••••
+                      </div>
+                    )}
                   </div>
                 )}
-                <div className="text-[0.7rem] text-slate-400 font-mono bg-white p-2.5 rounded border border-slate-200 select-all cursor-pointer break-all" title="Click to copy your Secret Key" onClick={() => { navigator.clipboard.writeText(embeddedSecretKey || ''); alert('Secret Key copied to clipboard!'); }}>
-                  <strong>Secret Key:</strong> {embeddedSecretKey?.slice(0, 8)}...
-                  <span className="block text-[0.6rem] text-slate-400 mt-1 font-bold">✓ Click to Copy Secret Key (starts with S)</span>
+                <div className="flex flex-col gap-1.5 p-2.5 rounded border border-slate-200 bg-white">
+                  <div className="flex justify-between items-center text-[0.7rem] text-slate-400 font-bold uppercase tracking-wider">
+                    <span>Secret Key</span>
+                    <button 
+                      className="bg-transparent border-none text-indigo-600 font-bold cursor-pointer text-[0.7rem] hover:underline outline-none"
+                      onClick={(e) => { e.stopPropagation(); setShowSecretKey(!showSecretKey); }}
+                    >
+                      {showSecretKey ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  {showSecretKey ? (
+                    <div className="text-[0.7rem] text-slate-700 font-mono break-all select-all cursor-pointer mt-1" onClick={() => { navigator.clipboard.writeText(embeddedSecretKey || ''); alert('Secret Key copied to clipboard!'); }}>
+                      {embeddedSecretKey}
+                      <span className="block text-[0.55rem] text-slate-400 mt-1 font-bold">✓ Click to Copy Secret Key (starts with S)</span>
+                    </div>
+                  ) : (
+                    <div className="text-[0.7rem] text-slate-400 font-mono mt-1 select-none">
+                      {embeddedSecretKey ? `${embeddedSecretKey.slice(0, 4)}••••••••••••••••••••••••••••••••••••••••` : ''}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
