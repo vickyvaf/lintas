@@ -196,6 +196,8 @@ function App() {
   const [showConfirmEmbeddedModal, setShowConfirmEmbeddedModal] = useState<boolean>(false);
   const [showSeedPhrase, setShowSeedPhrase] = useState<boolean>(false);
   const [showSecretKey, setShowSecretKey] = useState<boolean>(false);
+  const [showImportModal, setShowImportModal] = useState<boolean>(false);
+  const [importInputText, setImportInputText] = useState<string>('');
 
   // PWA Installation States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -1064,10 +1066,14 @@ function App() {
     }
   };
 
-  const handleImportWallet = async () => {
-    const input = prompt("Enter your 12-word Seed Phrase OR Stellar Secret Key (starts with 'S'):");
-    if (!input) return;
-    const cleanInput = input.trim();
+  const handleImportWallet = () => {
+    setImportInputText('');
+    setShowImportModal(true);
+  };
+
+  const executeImportWallet = async () => {
+    if (!importInputText) return;
+    const cleanInput = importInputText.trim();
     try {
       let pubKey = '';
       let secKey = '';
@@ -1081,7 +1087,7 @@ function App() {
         const keypair = StellarSdk.Keypair.fromRawEd25519Seed(seed as any);
         pubKey = keypair.publicKey();
         secKey = keypair.secret();
-        seedPhrase = cleanInput;
+        seedPhrase = cleanInput.trim().toLowerCase();
       } else {
         const keypair = StellarSdk.Keypair.fromSecret(cleanInput);
         pubKey = keypair.publicKey();
@@ -1099,6 +1105,8 @@ function App() {
       localStorage.setItem('lintas_embedded_seed_phrase', seedPhrase);
       localStorage.removeItem('lintas_wallet_disconnected');
 
+      setShowImportModal(false);
+      setImportInputText('');
       alert("Wallet imported successfully!");
     } catch (err: any) {
       console.error(err);
@@ -2676,6 +2684,55 @@ function App() {
                   }}
                 >
                   Confirm Payment
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Import Wallet Modal */}
+        {showImportModal && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex items-end justify-center z-50 animate-fade-in" style={{ animationDuration: '200ms' }}>
+            <div className="w-full bg-white rounded-t-3xl p-6 flex flex-col gap-4 shadow-xl max-w-[425px] border-t border-slate-200 animate-slide-up" style={{ transformOrigin: 'bottom' }}>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <h3 className="text-[1.1rem] font-extrabold text-slate-900 m-0">Import Wallet</h3>
+                <button
+                  className="bg-transparent border-none text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                  onClick={() => { setShowImportModal(false); setImportInputText(''); }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-1 text-[0.8rem] text-slate-500">
+                <span className="font-bold text-slate-800">Seed Phrase or Secret Key</span>
+                <span>Enter your 12-word Seed Phrase or Stellar Secret Key (starts with S). Autocorrect and auto-capitalization are disabled.</span>
+              </div>
+
+              <textarea
+                className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 font-mono text-[0.8rem] bg-slate-50 resize-none h-[96px]"
+                placeholder="e.g. abandon ability able about above absent absorb abstract absurd abuse access accident"
+                autoCapitalize="none"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                value={importInputText}
+                onChange={(e) => setImportInputText(e.target.value)}
+              />
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200"
+                  onClick={() => { setShowImportModal(false); setImportInputText(''); }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="flex-1 bg-[#01AED6] hover:bg-[#0090b3] text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm"
+                  onClick={executeImportWallet}
+                  disabled={!importInputText.trim()}
+                >
+                  Import Wallet
                 </button>
               </div>
             </div>
