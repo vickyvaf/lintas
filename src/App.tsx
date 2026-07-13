@@ -221,12 +221,12 @@ function App() {
     explorerBase: 'https://stellar.expert/explorer/testnet/tx',
   };
 
-  const [usdcBalance, setUsdcBalance] = useState<string>('100.00');
+  const [usdcBalance, setUsdcBalance] = useState<string>('0.00');
   const [xlmBalance, setXlmBalance] = useState<string>('0.00');
 
   useEffect(() => {
     if (!walletAddress) {
-      setUsdcBalance('100.00');
+      setUsdcBalance('0.00');
       setXlmBalance('0.00');
       return;
     }
@@ -1569,10 +1569,10 @@ function App() {
           <button className="w-full bg-[#01AED6] hover:bg-[#0090b3] text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm" onClick={handleConnectWallet} disabled={isConnectingWallet}>
             {isConnectingWallet ? 'Connecting...' : 'Connect Freighter Wallet'}
           </button>
-          
+
           <div className="flex items-center justify-between gap-2 my-1">
             <div className="flex-1 h-[1px] bg-slate-200"></div>
-            <span className="text-[0.7rem] text-slate-400 font-bold uppercase tracking-wider">Or Mobile Native</span>
+            <span className="text-[0.7rem] text-slate-400 font-bold">Or Mobile Native</span>
             <div className="flex-1 h-[1px] bg-slate-200"></div>
           </div>
 
@@ -1727,16 +1727,15 @@ function App() {
                   <div className="flex flex-col items-start gap-1">
                     <span className="text-[0.9rem] font-bold text-slate-900">{inv.merchant}</span>
                     <span className="text-[0.75rem] text-slate-500">{inv.city} • Ref: {inv.id}</span>
-                    <span className={`text-[0.7rem] font-semibold px-2 py-0.5 rounded ${
-                      inv.status === 'SCANNED' ? 'bg-indigo-50 text-indigo-600' :
-                      inv.status === 'QUOTED' ? 'bg-amber-100 text-amber-800' :
-                      inv.status === 'PAYMENT_PENDING' ? 'bg-sky-100 text-sky-800' :
-                      inv.status === 'FAILED' ? 'bg-red-50 text-red-600' :
-                      'bg-emerald-100 text-emerald-800'
-                    }`}>
-                      {inv.status === 'SETTLED' ? 'Success' : 
-                       inv.status === 'FAILED' ? 'Failed' : 
-                       inv.status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                    <span className={`text-[0.7rem] font-semibold px-2 py-0.5 rounded ${inv.status === 'SCANNED' ? 'bg-indigo-50 text-indigo-600' :
+                        inv.status === 'QUOTED' ? 'bg-amber-100 text-amber-800' :
+                          inv.status === 'PAYMENT_PENDING' ? 'bg-sky-100 text-sky-800' :
+                            inv.status === 'FAILED' ? 'bg-red-50 text-red-600' :
+                              'bg-emerald-100 text-emerald-800'
+                      }`}>
+                      {inv.status === 'SETTLED' ? 'Success' :
+                        inv.status === 'FAILED' ? 'Failed' :
+                          inv.status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
                     </span>
                   </div>
                 </div>
