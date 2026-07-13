@@ -124,3 +124,43 @@ The active Stellar network (Testnet or Mainnet) is **automatically synced from t
 - Horizon RPC endpoints and balance fetching
 - Mayar API environment (`sandbox` ↔ `production`)
 - Transaction History filtering (each transaction is tagged with its network at scan time)
+
+---
+
+## Hackathon Submission Q&A
+
+### What is your Problem Statement?
+Crypto holders in Indonesia cannot spend their on-chain assets at real merchants. Indonesian retail commerce runs almost entirely on QRIS — a QR-based payment standard managed by regulated payment service providers. There is no native bridge between a Stellar wallet and a QRIS merchant point of sale. Users who hold USDC or XLM must manually off-ramp to IDR through an exchange before they can pay at any local merchant, which is slow, costly, and friction-heavy.
+
+### Proposed Solution
+Lintas is a mobile web bridge that lets a user scan any Indonesian QRIS code with their phone, pay in Stellar USDC or XLM through their Freighter wallet, and automatically settle the payment in IDR to the merchant through Mayar — a licensed local payment provider. The app handles the full flow: QR parsing → live crypto quote → Stellar on-chain payment → anchor off-ramp → Mayar IDR settlement invoice → polling for confirmation. The merchant does not need to know anything about crypto; they simply receive IDR in their existing account.
+
+### Target Users / Audience
+**Primary:**
+- Crypto-native users and Stellar ecosystem participants in Indonesia who hold USDC or XLM and want to spend them at local merchants without manually cashing out.
+- Hackathon judges and demo audiences evaluating real-world utility of Stellar for consumer payments.
+
+**Secondary:**
+- Indonesian fintech developers exploring QRIS + blockchain payment architecture.
+- Businesses or wallets interested in building a crypto-to-fiat payments layer on Stellar for the Indonesian market.
+
+### Team Member Names & Roles
+| Name | Role |
+|---|---|
+| Vicky Adi Firmansyah | Solo Developer — Product, Design, Frontend, Smart Contract & Payment Integration |
+
+### Which country are you located?
+Indonesia 🇮🇩
+
+### Expected Stellar Integration
+- **Freighter Wallet** — wallet connection, address resolution, and transaction signing.
+- **Stellar SDK + Horizon** — building, signing, and submitting on-chain USDC/XLM payment transactions; real-time balance fetching.
+- **USDC on Stellar (SAC)** — primary stablecoin payment asset alongside native XLM on Testnet.
+- **Anchor Off-ramp Pattern** — after on-chain payment, the bridge executes a real Stellar transaction (USDC burned to issuer or XLM transferred to off-ramp address), producing a real tx hash before fiat settlement is triggered.
+- **Testnet / Mainnet** — both environments supported, auto-synced from the Freighter wallet network setting.
+
+### Hackathon Track
+**Payment & Consumer Applications**
+
+Lintas directly addresses consumer-facing payments: a Stellar-powered QRIS wallet that enables crypto holders to pay at any Indonesian retail merchant and settle in local fiat (IDR) through a licensed payment provider — no exchange required, no manual off-ramp, no merchant-side changes needed.
+
