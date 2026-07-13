@@ -223,7 +223,8 @@ async function hmacSha512(key: Uint8Array, data: Uint8Array): Promise<Uint8Array
 // Convert 12-word seed phrase deterministically to 32-byte Ed25519 Seed via PBKDF2 + SLIP-0010 (m/44'/148'/0')
 export async function mnemonicToSeed(mnemonic: string): Promise<Uint8Array> {
   // 1. BIP-39 PBKDF2 HMAC-SHA512 to generate 64-byte seed
-  const password = new TextEncoder().encode(mnemonic.trim().toLowerCase().normalize("NFKD"));
+  const cleanedMnemonic = mnemonic.trim().toLowerCase().replace(/\s+/g, " ").normalize("NFKD");
+  const password = new TextEncoder().encode(cleanedMnemonic);
   const salt = new TextEncoder().encode("mnemonic");
   const baseKey = await crypto.subtle.importKey(
     "raw",
