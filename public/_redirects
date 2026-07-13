@@ -1,1 +1,3 @@
+/api/mayar-sandbox/*  https://api.mayar.club/:splat  200!
+/api/mayar-production/*  https://api.mayar.id/:splat  200!
 /*   /index.html   200
