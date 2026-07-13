@@ -174,6 +174,8 @@ function App() {
   const [showSimulator, setShowSimulator] = useState<boolean>(false);
   const [isEditingAmount, setIsEditingAmount] = useState<boolean>(false);
 
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
+
   // Freighter Wallet Connection States
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletNetwork, setWalletNetwork] = useState<string | null>(null);
@@ -310,14 +312,19 @@ function App() {
   useEffect(() => {
     const checkFreighter = async () => {
       if (localStorage.getItem('lintas_is_embedded_wallet') === 'true') {
+        setIsInitializing(false);
         return;
       }
       if (localStorage.getItem('lintas_wallet_disconnected') === 'true') {
+        setIsInitializing(false);
         return;
       }
       try {
         const { isConnected: installed } = await isConnected();
-        if (!installed) return;
+        if (!installed) {
+          setIsInitializing(false);
+          return;
+        }
         const { address: addr } = await getAddress();
         if (addr) {
           setWalletAddress(addr);
@@ -329,6 +336,8 @@ function App() {
         }
       } catch (e) {
         console.warn("Failed checking Freighter connection", e);
+      } finally {
+        setIsInitializing(false);
       }
     };
     checkFreighter();
@@ -2277,6 +2286,17 @@ function App() {
       </div>
     );
   };
+
+  if (isInitializing) {
+    return (
+      <div className="flex justify-center items-center w-screen h-screen max-[480px]:h-[100dvh] bg-black">
+        <div className="w-full max-w-[425px] h-screen max-[480px]:h-[100dvh] max-h-[860px] max-[480px]:max-h-[100dvh] bg-slate-50 relative flex flex-col justify-center items-center gap-5">
+          <img src="/favicon.png" alt="Lintas Logo" className="w-24 h-24 object-contain animate-pulse" />
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
 
   if (isFaucetPage) {
     return (
