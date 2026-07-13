@@ -3,7 +3,7 @@
 <img width="750" height="1334" alt="localhost_5173_(iPhone SE)" src="https://github.com/user-attachments/assets/d7facd70-39ee-47f9-807b-0a4a74e1aae1" />
 
 
-Lintas is a mobile web bridge application that lets a crypto holder scan any standard Indonesian QRIS code, pay with Stellar assets (USDC/XLM) from a Freighter wallet, and settle the payment in real IDR to the merchant — all in a single flow.
+Lintas is a mobile web bridge application that lets a crypto holder scan any standard Indonesian QRIS code, pay with Stellar assets (USDC/XLM) from a Freighter wallet, and settle the payment in real IDR to the merchant, all in a single flow.
 
 ---
 
