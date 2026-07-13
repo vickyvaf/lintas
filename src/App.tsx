@@ -1623,7 +1623,7 @@ function App() {
 
       setPaymentStatusMessage(`Mayar Invoice generated successfully!\nID: ${invoiceId}\n\nRedirecting you to the Mayar Payment Page...\nIf popup is blocked, click the "Open Mayar Payment Page" button below.`);
 
-      window.open(paymentUrl, '_blank');
+      window.location.href = paymentUrl;
 
       startMayarStatusPolling(invoiceId);
 
@@ -2285,7 +2285,7 @@ function App() {
                         </p>
                         {currentInvoice.mayarSettlementPaymentUrl && currentInvoice.status === 'SETTLEMENT_PENDING' && (
                           <div className="flex gap-2 mt-2">
-                            <a href={currentInvoice.mayarSettlementPaymentUrl} target="_blank" rel="noreferrer" className="bg-indigo-600 text-white no-underline py-1.5 px-3 rounded font-bold text-[0.75rem] inline-flex items-center gap-1">
+                            <a href={currentInvoice.mayarSettlementPaymentUrl} className="bg-indigo-600 hover:bg-indigo-700 text-white no-underline py-1.5 px-3 rounded font-bold text-[0.75rem] inline-flex items-center gap-1 transition-colors duration-200">
                               Pay Merchant Invoice via Mayar <ExternalLink size={14} />
                             </a>
                           </div>
