@@ -133,7 +133,7 @@ The active Stellar network (Testnet or Mainnet) is **automatically synced from t
 Crypto holders in Indonesia cannot spend their on-chain assets at real merchants. Indonesian retail commerce runs almost entirely on QRIS — a QR-based payment standard managed by regulated payment service providers. There is no native bridge between a Stellar wallet and a QRIS merchant point of sale. Users who hold USDC or XLM must manually off-ramp to IDR through an exchange before they can pay at any local merchant, which is slow, costly, and friction-heavy.
 
 ### Proposed Solution
-Lintas is a mobile web bridge that lets a user scan any Indonesian QRIS code with their phone, pay in Stellar USDC or XLM through their Freighter wallet, and automatically settle the payment in IDR to the merchant through Mayar — a licensed local payment provider. The app handles the full flow: QR parsing → live crypto quote → Stellar on-chain payment → anchor off-ramp → Mayar IDR settlement invoice → polling for confirmation. The merchant does not need to know anything about crypto; they simply receive IDR in their existing account.
+Lintas is a mobile web bridge that lets a user scan any Indonesian QRIS code with their phone, pay in Stellar USDC or XLM through their Freighter wallet, and automatically settle the payment in IDR to the merchant — a licensed local payment provider. The app handles the full flow: QR parsing → live crypto quote → Stellar on-chain payment → anchor off-ramp → Mayar IDR settlement invoice → polling for confirmation. The merchant does not need to know anything about crypto; they simply receive IDR in their existing account.
 
 ### Target Users / Audience
 **Primary:**
