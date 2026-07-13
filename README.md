@@ -1,4 +1,4 @@
-# Lintas — QRIS x Stellar x Mayar Bridge
+# Lintas
 
 ![Lintas Preview](public/preview.png)
 

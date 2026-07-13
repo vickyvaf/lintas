@@ -1,4 +1,4 @@
-# PRD — Lintas (QRIS x Stellar x Mayar Demo App)
+# PRD — Lintas
 
 ## Overview
 This product is a simple demo application that lets a user scan a QRIS code, read the merchant invoice details, show a crypto equivalent, accept a payment on Stellar, simulate an anchor off-ramp flow, and create a merchant payout through Mayar disbursement and checkout APIs.
@@ -81,11 +81,11 @@ The merchant side sees invoice amount, crypto equivalent, tx hash, settlement st
 ## Screens & Layout (5-Page Mobile Wallet UI)
 | Screen/Tab | Purpose |
 |---|---|
-| Home | Account balance overview (USDC/XLM), quick faucet actions, and live CoinGecko rates. |
-| Activity | Personal transaction log listing on-chain payment history. |
-| Scan QR (Center) | Direct camera scanning access or sandbox mock QR generator form. |
-| Merchant Hub | Settlement dashboard showing payout status, Mayar invoice info, and anchor tx hashes. |
-| Profile | Freighter wallet connectivity setup, API configuration, and network toggles. |
+| Home | Account balance overview, quick faucet actions, and live CoinGecko rates. |
+| Tokens | Multi-asset token balance list (USDC, XLM, etc.), asset details, and quick deposit/withdrawal links. |
+| Scan | Direct camera-based QRIS scanning access or sandbox mock QR generator form. |
+| History | Transaction history log showing on-chain payment history, invoice details, and Mayar payout/settlement status. |
+| Profile | Freighter wallet connectivity setup, API/developer configuration, and network toggles. |
 
 ## Technical Architecture
 ### Frontend

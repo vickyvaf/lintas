@@ -25,6 +25,12 @@
       "skillPath": "skills/data/SKILL.md",
       "computedHash": "d9d41da110abd038dcd0885528fe898528f0c1b4efc66e780e9ad2bff745d278"
     },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "8bdf9e4e6de7a4969147bf4828a4ad2c5aacd9fba4b690b250a85e0467ca387d"
+    },
     "integrate-midtrans-payments": {
       "source": "veritrans/midtrans-agent-skills",
       "sourceType": "github",
