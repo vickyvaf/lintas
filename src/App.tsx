@@ -1,34 +1,34 @@
-import { useState, useEffect, useRef } from 'react';
-import * as StellarSdk from '@stellar/stellar-sdk';
-import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 import {
-  isConnected,
   getAddress,
+  getNetwork,
+  isConnected,
   requestAccess,
-  signTransaction,
-  getNetwork
+  signTransaction
 } from '@stellar/freighter-api';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { entropyToMnemonic, mnemonicToSeed, mnemonicToEntropy } from './mnemonic';
+import * as StellarSdk from '@stellar/stellar-sdk';
+import { Html5Qrcode } from 'html5-qrcode';
 import {
-  Home,
-  History,
-  QrCode,
-  Coins,
-  User,
-  RefreshCw,
-  Wallet,
+  AlertCircle,
   ArrowLeft,
   ArrowRightLeft,
+  ArrowUpDown,
   CheckCircle2,
-  AlertCircle,
-  ExternalLink,
   ChevronRight,
-  Store,
+  Coins,
+  ExternalLink,
+  History,
+  Home,
   Image,
-  X,
-  ArrowUpDown
+  QrCode,
+  RefreshCw,
+  Store,
+  User,
+  Wallet,
+  X
 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { entropyToMnemonic, mnemonicToSeed } from './mnemonic';
 
 interface Invoice {
   id: string;
@@ -130,7 +130,19 @@ function App() {
   const [invoices, setInvoices] = useState<Invoice[]>(() => {
     try {
       const stored = localStorage.getItem('lintas_invoices');
-      return stored ? JSON.parse(stored) : [];
+      if (stored) {
+        const parsed = JSON.parse(stored) as Invoice[];
+        return parsed.map((inv, idx) => {
+          if (!inv.createdAt) {
+            // Assign sequential fallback timestamps so they have a defined order
+            const date = new Date();
+            date.setMinutes(date.getMinutes() - (parsed.length - idx));
+            return { ...inv, createdAt: date.toISOString() };
+          }
+          return inv;
+        });
+      }
+      return [];
     } catch (e) {
       console.warn("Failed to load invoices from localStorage:", e);
       return [];
@@ -1880,7 +1892,7 @@ function App() {
       <div className="animate-fade-in flex flex-col gap-4 pb-24">
         <div className="flex justify-between items-center mb-1">
           <h3 className="text-[1.1rem] font-bold text-slate-900 tracking-[-0.3px] m-0">Transaction History</h3>
-          <button 
+          <button
             onClick={() => setHistorySortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
             className="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-[0.75rem] font-bold cursor-pointer transition-colors duration-200 outline-none"
           >
