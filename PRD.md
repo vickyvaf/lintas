@@ -34,7 +34,6 @@ The merchant still thinks in IDR, the payer pays in crypto, and the app orchestr
 
 ### Primary
 - Crypto holders who want to pay a local Indonesian merchant without manually cashing out first.
-- Demo merchants or hackathon judges who want to see a realistic merchant settlement flow.
 
 ### Secondary
 - Developers exploring QRIS + blockchain payment architecture.
@@ -197,9 +196,7 @@ This avoids claiming that QRIS merchants directly receive crypto, while demonstr
 
 ---
 
-## Hackathon Submission Q&A
-
-### What is your Problem Statement?
+### What is Problem Statement?
 Crypto holders in Indonesia cannot spend their on-chain assets at real merchants. Indonesian retail commerce runs almost entirely on QRIS — a QR-based payment standard managed by regulated payment service providers. There is no native bridge between a Stellar wallet and a QRIS merchant point of sale. Users who hold USDC or XLM must manually off-ramp to IDR through an exchange before they can pay at any local merchant, which is slow, costly, and friction-heavy.
 
 ### Proposed Solution
@@ -208,19 +205,10 @@ Lintas is a mobile web bridge that lets a user scan any Indonesian QRIS code wit
 ### Target Users / Audience
 **Primary:**
 - Crypto-native users and Stellar ecosystem participants in Indonesia who hold USDC or XLM and want to spend them at local merchants without manually cashing out.
-- Hackathon judges and demo audiences evaluating real-world utility of Stellar for consumer payments.
 
 **Secondary:**
 - Indonesian fintech developers exploring QRIS + blockchain payment architecture.
 - Businesses or wallets interested in building a crypto-to-fiat payments layer on Stellar for the Indonesian market.
-
-### Team Member Names & Roles
-| Name | Role |
-|---|---|
-| Vicky Adi Firmansyah | Solo Developer — Product, Design, Frontend, Smart Contract & Payment Integration |
-
-### Which country are you located?
-Indonesia 🇮🇩
 
 ### Expected Stellar Integration
 - **Freighter Wallet** — used for wallet connection, account address resolution, and signing Stellar transactions.
@@ -229,7 +217,7 @@ Indonesia 🇮🇩
 - **Anchor Off-ramp Pattern** — after detecting the on-chain payment, the bridge executes a real Stellar transaction representing the anchor redemption step (USDC burned to issuer or XLM transferred to off-ramp address), producing a real on-chain transaction hash before triggering fiat settlement.
 - **Testnet / Mainnet** — the app supports both environments, automatically synced from the connected Freighter wallet network setting.
 
-### Hackathon Track
+### Track
 **Payment & Consumer Applications**
 
 Lintas directly addresses consumer-facing payments: a Stellar-powered QRIS wallet that enables crypto holders to pay at any Indonesian retail merchant and settle in local fiat (IDR) through a licensed payment provider — no exchange required, no manual off-ramp, no merchant-side changes needed.
