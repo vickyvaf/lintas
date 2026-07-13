@@ -208,10 +208,63 @@ export function mnemonicToEntropy(mnemonic: string): Uint8Array {
   return entropy;
 }
 
-// Convert 12-word seed phrase deterministically to 32-byte Ed25519 Seed via SHA-256
+async function hmacSha512(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    key as any,
+    { name: "HMAC", hash: "SHA-512" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", cryptoKey, data as any);
+  return new Uint8Array(signature);
+}
+
+// Convert 12-word seed phrase deterministically to 32-byte Ed25519 Seed via PBKDF2 + SLIP-0010 (m/44'/148'/0')
 export async function mnemonicToSeed(mnemonic: string): Promise<Uint8Array> {
-  const entropy = mnemonicToEntropy(mnemonic);
-  // Hash the entropy bytes using native browser crypto SHA-256 to get 32-byte seed
-  const hashBuffer = await crypto.subtle.digest("SHA-256", entropy);
-  return new Uint8Array(hashBuffer);
+  // 1. BIP-39 PBKDF2 HMAC-SHA512 to generate 64-byte seed
+  const password = new TextEncoder().encode(mnemonic.normalize("NFKD"));
+  const salt = new TextEncoder().encode("mnemonic");
+  const baseKey = await crypto.subtle.importKey(
+    "raw",
+    password as any,
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bip39SeedBuffer = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: salt as any,
+      iterations: 2048,
+      hash: "SHA-512"
+    },
+    baseKey,
+    512
+  );
+  const bip39Seed = new Uint8Array(bip39SeedBuffer);
+
+  // 2. SLIP-0010 Master Node derivation
+  const masterKey = new TextEncoder().encode("ed25519 seed");
+  const I = await hmacSha512(masterKey, bip39Seed);
+  let k = I.slice(0, 32);
+  let c = I.slice(32, 64);
+
+  // 3. Derive path: m/44'/148'/0'
+  const path = [44, 148, 0];
+  for (const idx of path) {
+    const hardenedIndex = idx + 0x80000000;
+    const data = new Uint8Array(1 + 32 + 4);
+    data[0] = 0x00;
+    data.set(k, 1);
+    
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    view.setUint32(1 + 32, hardenedIndex, false);
+
+    const I_child = await hmacSha512(c, data);
+    k = I_child.slice(0, 32);
+    c = I_child.slice(32, 64);
+  }
+
+  return k;
 }

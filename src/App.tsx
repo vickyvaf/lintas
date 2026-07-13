@@ -25,7 +25,8 @@ import {
   ExternalLink,
   ChevronRight,
   Store,
-  Image
+  Image,
+  X
 } from 'lucide-react';
 
 interface Invoice {
@@ -192,6 +193,7 @@ function App() {
   const [embeddedSeedPhrase, setEmbeddedSeedPhrase] = useState<string | null>(() => {
     return localStorage.getItem('lintas_embedded_seed_phrase');
   });
+  const [showConfirmEmbeddedModal, setShowConfirmEmbeddedModal] = useState<boolean>(false);
 
   // Load embedded wallet on startup
   useEffect(() => {
@@ -981,7 +983,7 @@ function App() {
       const seedPhrase = entropyToMnemonic(entropy);
       const seed = await mnemonicToSeed(seedPhrase);
       
-      const keypair = StellarSdk.Keypair.fromRawEd25519Seed(seed);
+      const keypair = StellarSdk.Keypair.fromRawEd25519Seed(seed as any);
       const pubKey = keypair.publicKey();
       const secKey = keypair.secret();
 
@@ -1028,7 +1030,7 @@ function App() {
       if (isSeedPhrase) {
         setPaymentStatusMessage("Deriving Stellar Keypair from seed phrase...");
         const seed = await mnemonicToSeed(cleanInput);
-        const keypair = StellarSdk.Keypair.fromRawEd25519Seed(seed);
+        const keypair = StellarSdk.Keypair.fromRawEd25519Seed(seed as any);
         pubKey = keypair.publicKey();
         secKey = keypair.secret();
         seedPhrase = cleanInput;
@@ -1287,8 +1289,13 @@ function App() {
     }
   };
 
-  const handleAutoPayStellar = async () => {
+  const handleAutoPayStellar = async (isConfirmed = false) => {
     if (!currentInvoice || !currentInvoice.total) return;
+
+    if (isEmbeddedWallet && embeddedSecretKey && !isConfirmed) {
+      setShowConfirmEmbeddedModal(true);
+      return;
+    }
 
     let payerAddress = '';
     let usingFreighter = false;
@@ -2100,7 +2107,7 @@ function App() {
                   </div>
 
                   <div className="mt-[15px]">
-                    <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200" onClick={handleAutoPayStellar} disabled={checkingPayment}>
+                    <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200" onClick={() => handleAutoPayStellar(false)} disabled={checkingPayment}>
                       {checkingPayment ? 'Processing...' : walletAddress ? 'Pay' : 'Simulate Auto-Pay (Escrow)'}
                     </button>
                   </div>
@@ -2446,6 +2453,81 @@ function App() {
               <span>Profile</span>
             </button>
           </nav>
+        )}
+
+        {/* Transaction Confirmation Modal */}
+        {showConfirmEmbeddedModal && currentInvoice && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex items-end justify-center z-50 animate-fade-in" style={{ animationDuration: '200ms' }}>
+            <div className="w-full bg-white rounded-t-3xl p-6 flex flex-col gap-5 shadow-xl max-w-[425px] border-t border-slate-200 animate-slide-up" style={{ transformOrigin: 'bottom' }}>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <h3 className="text-[1.1rem] font-extrabold text-slate-900 m-0">Confirm Payment</h3>
+                <button
+                  className="bg-transparent border-none text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                  onClick={() => setShowConfirmEmbeddedModal(false)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex flex-col items-center py-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <span className="text-[0.75rem] font-bold text-slate-400 uppercase tracking-wider">Amount to Send</span>
+                <span className="text-[2.2rem] font-black text-slate-900 leading-none mt-2">
+                  {currentInvoice.total?.toFixed(4)} <span className="text-[1.2rem] font-bold text-slate-500">{currentInvoice.assetCode}</span>
+                </span>
+                {displayCurrency === 'IDR' && rates[currentInvoice.assetCode as 'USDC' | 'XLM'] && (
+                  <span className="text-[0.85rem] font-bold text-indigo-600 mt-1">
+                    ≈ Rp {((currentInvoice.total || 0) * rates[currentInvoice.assetCode as 'USDC' | 'XLM']).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3.5 text-[0.8rem]">
+                <div className="flex justify-between items-start">
+                  <span className="text-slate-400 font-medium">To (Merchant):</span>
+                  <span className="text-slate-700 font-bold text-right truncate max-w-[200px] font-mono select-all">
+                    {stellarPublicKey}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 font-medium">Memo / Invoice ID:</span>
+                  <span className="text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded font-mono">
+                    {currentInvoice.id}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 font-medium">Network:</span>
+                  <span className="text-slate-700 font-bold flex items-center gap-1.5 capitalize">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Stellar {stellarNet}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 font-medium">Est. Network Fee:</span>
+                  <span className="text-slate-700 font-bold font-mono">
+                    0.0001 XLM (100 stroops)
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border-none py-3.5 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200"
+                  onClick={() => setShowConfirmEmbeddedModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="flex-1 bg-[#01AED6] hover:bg-[#0090b3] text-white border-none py-3.5 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm"
+                  onClick={() => {
+                    setShowConfirmEmbeddedModal(false);
+                    handleAutoPayStellar(true);
+                  }}
+                >
+                  Confirm Payment
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
