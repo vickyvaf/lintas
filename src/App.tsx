@@ -1699,7 +1699,7 @@ function App() {
           {isMobileOrTablet && !isStandalone && (
             <button
               onClick={handleInstallClick}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm animate-fade-in mb-1"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm animate-fade-in mb-1"
             >
               Install Application
             </button>
