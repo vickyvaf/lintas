@@ -1076,6 +1076,14 @@ function App() {
     if (!walletAddress) return;
     setCheckingPayment(true);
     setPaymentStatusMessage("Initiating XLM to USDC swap...");
+    
+    let usingFreighter = true;
+    let secretKeyToUse = '';
+    if (isEmbeddedWallet && embeddedSecretKey) {
+      usingFreighter = false;
+      secretKeyToUse = embeddedSecretKey;
+    }
+
     try {
       const server = new StellarSdk.Horizon.Server(netConfig.horizonUrl);
       let senderAccount = await server.loadAccount(walletAddress);
@@ -1099,13 +1107,19 @@ function App() {
           .setTimeout(180)
           .build();
 
-        setPaymentStatusMessage("Please sign the trustline creation in your Freighter Wallet...");
-        const { signedTxXdr, error } = await signTransaction(trustTx.toXDR(), {
-          networkPassphrase: netConfig.networkPassphrase
-        });
-        if (error) throw new Error("Freighter trustline signing rejected: " + error);
-        const signedTrustTx = StellarSdk.TransactionBuilder.fromXDR(signedTxXdr, netConfig.networkPassphrase);
-        await server.submitTransaction(signedTrustTx);
+        if (usingFreighter) {
+          setPaymentStatusMessage("Please sign the trustline creation in your Freighter Wallet...");
+          const { signedTxXdr, error } = await signTransaction(trustTx.toXDR(), {
+            networkPassphrase: netConfig.networkPassphrase
+          });
+          if (error) throw new Error("Freighter trustline signing rejected: " + error);
+          const signedTrustTx = StellarSdk.TransactionBuilder.fromXDR(signedTxXdr, netConfig.networkPassphrase);
+          await server.submitTransaction(signedTrustTx);
+        } else {
+          const payerKeypair = StellarSdk.Keypair.fromSecret(secretKeyToUse);
+          trustTx.sign(payerKeypair);
+          await server.submitTransaction(trustTx);
+        }
         setPaymentStatusMessage("USDC trustline successfully established!");
         senderAccount = await server.loadAccount(walletAddress);
       }
@@ -1125,15 +1139,22 @@ function App() {
         .setTimeout(180)
         .build();
 
-      setPaymentStatusMessage("Please sign the swap transaction in your Freighter Wallet...");
-      const { signedTxXdr, error } = await signTransaction(tx.toXDR(), {
-        networkPassphrase: netConfig.networkPassphrase
-      });
-      if (error) throw new Error("Freighter signing rejected: " + error);
+      if (usingFreighter) {
+        setPaymentStatusMessage("Please sign the swap transaction in your Freighter Wallet...");
+        const { signedTxXdr, error } = await signTransaction(tx.toXDR(), {
+          networkPassphrase: netConfig.networkPassphrase
+        });
+        if (error) throw new Error("Freighter signing rejected: " + error);
 
-      const signedTx = StellarSdk.TransactionBuilder.fromXDR(signedTxXdr, netConfig.networkPassphrase);
-      setPaymentStatusMessage("Submitting swap transaction to Stellar network...");
-      await server.submitTransaction(signedTx);
+        const signedTx = StellarSdk.TransactionBuilder.fromXDR(signedTxXdr, netConfig.networkPassphrase);
+        setPaymentStatusMessage("Submitting swap transaction to Stellar network...");
+        await server.submitTransaction(signedTx);
+      } else {
+        const payerKeypair = StellarSdk.Keypair.fromSecret(secretKeyToUse);
+        tx.sign(payerKeypair);
+        setPaymentStatusMessage("Submitting swap transaction to Stellar network...");
+        await server.submitTransaction(tx);
+      }
 
       alert("Successfully swapped XLM to 100 USDC Testnet!");
       setPaymentStatusMessage("USDC obtained successfully!");
