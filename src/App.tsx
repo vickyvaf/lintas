@@ -1344,8 +1344,18 @@ function App() {
               throw new Error("Friendbot funding failed. Please fund your testnet account manually.");
             }
             setPaymentStatusMessage("Account successfully funded! Waiting for ledger to close...");
-            await new Promise(r => setTimeout(r, 2000));
-            senderAccount = await server.loadAccount(payerAddress);
+            let retries = 5;
+            while (retries > 0) {
+              await new Promise(r => setTimeout(r, 2000));
+              try {
+                senderAccount = await server.loadAccount(payerAddress);
+                break;
+              } catch (loadErr) {
+                retries--;
+                if (retries === 0) throw new Error("Timeout waiting for ledger to close after funding. Please try again.");
+                setPaymentStatusMessage(`Waiting for account to be activated on ledger... (${retries} attempts left)`);
+              }
+            }
           } else {
             throw new Error(`Account ${payerAddress} is not funded on Mainnet. Please fund it with some XLM to transact.`);
           }
@@ -2111,6 +2121,37 @@ function App() {
                       {checkingPayment ? 'Processing...' : walletAddress ? 'Pay' : 'Simulate Auto-Pay (Escrow)'}
                     </button>
                   </div>
+
+                  {checkingPayment && paymentStatusMessage && (
+                    <div className="bg-slate-800 text-sky-400 p-3 rounded-xl mt-3 animate-fade-in">
+                      <h5 className="text-white text-[0.7rem] mb-1 mt-0">Status Console</h5>
+                      <pre className="font-mono text-[0.6rem] whitespace-pre-wrap bg-none border-none p-0 m-0">{paymentStatusMessage}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Failed Section */}
+              {currentInvoice.status === 'FAILED' && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex flex-col gap-3">
+                  <div className="flex gap-2 text-red-800 text-[0.75rem] font-semibold">
+                    <AlertCircle size={20} className="shrink-0" />
+                    <div className="flex flex-col gap-1">
+                      <span className="font-bold">Payment Failed</span>
+                      <p className="text-[0.7rem] font-normal leading-normal text-red-700 m-0">
+                        {paymentStatusMessage || "An unknown error occurred during transaction execution."}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    className="w-full bg-slate-900 hover:bg-black text-white border-none p-3 rounded-lg font-bold text-[0.9rem] cursor-pointer transition-colors duration-200 mt-2" 
+                    onClick={() => {
+                      // Reset invoice back to PAYMENT_PENDING so they can retry
+                      setCurrentInvoice(prev => prev ? { ...prev, status: 'PAYMENT_PENDING' as any } : null);
+                    }}
+                  >
+                    Retry Payment
+                  </button>
                 </div>
               )}
 
