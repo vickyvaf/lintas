@@ -26,7 +26,8 @@ import {
   ChevronRight,
   Store,
   Image,
-  X
+  X,
+  ArrowUpDown
 } from 'lucide-react';
 
 interface Invoice {
@@ -55,6 +56,7 @@ interface Invoice {
   mayarSettlementPaidAt?: string;
   mayarSettlementError?: string;
   network?: 'testnet' | 'mainnet';
+  createdAt?: string;
 }
 
 // CRC16-CCITT checksum calculator for EMVCo/QRIS validation
@@ -198,6 +200,7 @@ function App() {
   const [showSecretKey, setShowSecretKey] = useState<boolean>(false);
   const [showImportModal, setShowImportModal] = useState<boolean>(false);
   const [importInputText, setImportInputText] = useState<string>('');
+  const [historySortOrder, setHistorySortOrder] = useState<'asc' | 'desc'>('desc');
 
   // PWA Installation States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -991,7 +994,8 @@ function App() {
       midtransPayload: null,
       paymentMethodUsed: null,
       mayarInvoiceId: null,
-      mayarPaymentUrl: null
+      mayarPaymentUrl: null,
+      createdAt: new Date().toISOString()
     };
   };
 
@@ -1259,7 +1263,8 @@ function App() {
       midtransPayload: null,
       paymentMethodUsed: null,
       mayarInvoiceId: null,
-      mayarPaymentUrl: null
+      mayarPaymentUrl: null,
+      createdAt: new Date().toISOString()
     };
 
     setCurrentInvoice(parsedInvoice);
@@ -1843,22 +1848,54 @@ function App() {
       );
     }
 
+    const formatTxTime = (isoString?: string) => {
+      if (!isoString) return '';
+      try {
+        const d = new Date(isoString);
+        return d.toLocaleString('id-ID', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+      } catch {
+        return '';
+      }
+    };
+
     const filteredInvoices = invoices.filter(inv => {
       const invNet = inv.network || 'testnet';
       return invNet === stellarNet;
     });
 
+    const sortedInvoices = [...filteredInvoices].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return historySortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+
     return (
       <div className="animate-fade-in flex flex-col gap-4 pb-24">
-        <h3 className="text-[1.1rem] font-bold text-slate-900 mb-3 tracking-[-0.3px]">Transaction History</h3>
+        <div className="flex justify-between items-center mb-1">
+          <h3 className="text-[1.1rem] font-bold text-slate-900 tracking-[-0.3px] m-0">Transaction History</h3>
+          <button 
+            onClick={() => setHistorySortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-[0.75rem] font-bold cursor-pointer transition-colors duration-200 outline-none"
+          >
+            {historySortOrder === 'desc' ? 'Newest' : 'Oldest'}
+            <ArrowUpDown size={14} />
+          </button>
+        </div>
         <div className="flex flex-col gap-3">
-          {filteredInvoices.length === 0 ? (
+          {sortedInvoices.length === 0 ? (
             <div className="text-center py-10 px-5 text-slate-400 flex flex-col items-center gap-2">
               <History size={48} />
               <p>No transactions found.</p>
             </div>
           ) : (
-            filteredInvoices.map((inv) => (
+            sortedInvoices.map((inv) => (
               <div className="bg-white border border-slate-200 p-4 rounded-2xl flex justify-between items-center cursor-pointer transition-colors duration-200 hover:bg-slate-50" key={inv.id} onClick={() => { setCurrentInvoice(inv); navigate('/scan'); }}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -1867,6 +1904,11 @@ function App() {
                   <div className="flex flex-col items-start gap-1">
                     <span className="text-[0.9rem] font-bold text-slate-900">{inv.merchant}</span>
                     <span className="text-[0.75rem] text-slate-500">{inv.city} • Ref: {inv.id}</span>
+                    {inv.createdAt && (
+                      <span className="text-[0.68rem] text-slate-400 font-medium font-sans">
+                        {formatTxTime(inv.createdAt)}
+                      </span>
+                    )}
                     <span className={`text-[0.7rem] font-semibold px-2 py-0.5 rounded ${inv.status === 'SCANNED' ? 'bg-indigo-50 text-indigo-600' :
                       inv.status === 'QUOTED' ? 'bg-amber-100 text-amber-800' :
                         inv.status === 'PAYMENT_PENDING' ? 'bg-sky-100 text-sky-800' :
