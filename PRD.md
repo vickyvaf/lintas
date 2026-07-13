@@ -1,198 +1,196 @@
 # PRD — Lintas
 
 ## Overview
-This product is a simple demo application that lets a user scan a QRIS code, read the merchant invoice details, show a crypto equivalent, accept a payment on Stellar, simulate an anchor off-ramp flow, and create a merchant payout through Mayar disbursement and checkout APIs.
+Lintas is a mobile web bridge application that lets a crypto-native user scan any standard Indonesian QRIS merchant code, pay with Stellar on-chain assets (USDC/XLM) using a Freighter wallet, and settle the transaction in IDR to the merchant through Mayar — all in a single, end-to-end flow.
 
-The goal is not to become a native QRIS issuer or a production payment processor. The goal is to demonstrate a believable end-to-end merchant payment flow where crypto funds the transaction and the merchant receives a fiat settlement path.
+The goal is not to become a native QRIS issuer or production payment processor. The goal is to demonstrate a believable, regulation-compatible end-to-end merchant payment flow where crypto funds the transaction and the merchant receives a fiat settlement path through an existing licensed payment provider (Mayar).
+
+---
 
 ## Product Goal
-Build a hackathon-ready MVP that proves three things:
-- QRIS can be used as the invoice and merchant acceptance layer.
+Build a production-demo application that proves three things:
+- QRIS can be used as the invoice and merchant acceptance layer without modification.
 - Stellar can be used as the user payment rail and anchor-compatible asset layer.
 - Mayar can be used as the local payout/disbursement layer after fiat settlement is available off-chain.
 
+---
+
 ## Problem
-Cross-border users and crypto-native users may hold stable assets on-chain, but small merchants in Indonesia typically accept QRIS and expect IDR settlement through local payment rails. Existing QRIS merchants are served by regulated PSPs and acquirers, so a Stellar wallet alone does not natively become a QRIS payment app without an additional bridge layer.
+Crypto-native users may hold stable assets on-chain, but small merchants in Indonesia typically accept QRIS and expect IDR settlement through local payment rails. Existing QRIS merchants are served by regulated PSPs and acquirers, so a Stellar wallet alone does not natively become a QRIS payment app without an additional bridge layer.
+
+---
 
 ## Product Concept
 The app acts as a bridge between three systems:
-- QRIS merchant invoice source.
-- Stellar payment flow for the payer.
-- Anchor plus Mayar payout flow for the merchant settlement.
+- **QRIS** — merchant-facing invoice format.
+- **Stellar** — payer asset rail (USDC/XLM).
+- **Mayar** — local fiat payout and merchant settlement.
 
-The merchant still thinks in IDR, the payer pays in crypto, and the backend orchestrates reconciliation and settlement.
+The merchant still thinks in IDR, the payer pays in crypto, and the app orchestrates reconciliation and settlement automatically.
 
-## Target User
-### Primary users
-- Crypto holders who want to pay a local Indonesian merchant without first manually cashing out.
+---
+
+## Target Users
+
+### Primary
+- Crypto holders who want to pay a local Indonesian merchant without manually cashing out first.
 - Demo merchants or hackathon judges who want to see a realistic merchant settlement flow.
 
-### Secondary users
-- Developers exploring QRIS plus blockchain payment architecture.
-- Stellar hackathon judges looking for local utility and composability.
+### Secondary
+- Developers exploring QRIS + blockchain payment architecture.
+- Stellar ecosystem builders looking for local utility and composability examples.
+
+---
 
 ## User Flow
-1. Merchant displays a QRIS code with invoice amount in IDR.
-2. User scans the QR using the mobile web app.
-3. The app parses QR data and extracts merchant reference plus amount.
-4. The backend fetches a quote and shows the user the equivalent amount in crypto.
-5. The user confirms and sends payment on Stellar to the platform wallet or escrow address.
-6. The backend verifies the Stellar transaction.
-7. The anchor layer is simulated as the off-ramp step from Stellar asset to fiat availability.
-8. The backend triggers a Mayar payout/invoice checkout representing merchant bank/e-wallet settlement.
-9. Merchant dashboard shows paid, payout created, and settlement status.
+1. Merchant displays a QRIS code with an invoice amount in IDR.
+2. User scans the QR using the Scan tab (camera, gallery upload, or My QR Code receive mode).
+3. App parses QR data and extracts merchant name, city, and IDR amount.
+4. App fetches a live crypto quote (USDC or XLM) and presents rate, fee, and total.
+5. User confirms and signs the Stellar payment through Freighter.
+6. Bridge engine executes the on-chain anchor off-ramp transaction.
+7. App creates a Mayar settlement invoice for the IDR amount.
+8. Merchant (or demo judge) pays the Mayar QRIS/e-wallet checkout link.
+9. App polls Mayar for confirmation and transitions to `SETTLED` (green checkmark).
 
-## Scope
-### In scope
-- QR scan interface for reading a QRIS image or camera feed.
-- QR parser for merchant reference and nominal.
-- Quote service from IDR to a selected crypto asset.
-- Stellar payment intent and transaction verification.
-- Mock anchor service representing off-ramp and compliance boundary.
-- Mayar payout integration or checkout link generation for merchant settlement.
-- Merchant dashboard showing invoice and settlement status.
+---
 
-### Out of scope
-- Production QRIS issuer registration.
-- Full KYC and AML stack.
-- Live licensed crypto-to-fiat conversion.
-- Guaranteed real bank settlement for external merchants.
-- Multi-country compliance.
+## Screens & Layout (5-Tab Mobile Wallet UI)
+
+| Tab | Purpose |
+|---|---|
+| **Home** | Freighter wallet balance (USDC/XLM), IDR/USD estimates, live exchange rates, and "Ready to pay?" quick-scan shortcut. |
+| **Tokens** | Multi-asset token balance list (USDC, XLM), rate cards, and asset details. |
+| **Scan** | Direct camera QRIS scanner, gallery file scan, and My QR Code receive payment generator. |
+| **History** | Transaction history grouped by network environment (Testnet/Mainnet), with merchant name, ref, status badge, and display currency amount. |
+| **Profile** | Freighter wallet connect/disconnect, network environment (auto-synced from Freighter), and display currency selector (IDR/USD). |
+
+---
 
 ## Core Features
+
 ### 1. Scan QR
-The app opens camera or image upload, scans a QRIS code, and extracts invoice metadata. If parsing fails, the user can paste mock QR payload manually.
+The app opens the camera directly (no simulator mode) and scans a QRIS code in real time. The user can also upload an image from the gallery or view a personal receive QR code with an optional IDR/USD amount request.
 
-### 2. Quote engine
-The backend calculates the crypto amount needed for the IDR invoice and locks the quote for a short time window. The UI shows amount, rate, fee, and expiry.
+### 2. Quote Engine
+The app calculates the crypto amount needed for the IDR invoice using live CoinGecko exchange rates combined with a live USD/IDR rate from Frankfurter API. The UI shows the amount, rate, fee, and equivalent in the selected display currency.
 
-### 3. Stellar payment
-The payer is shown a destination address, asset, and amount, then sends the transaction on Stellar testnet or a supported environment.
+### 3. Stellar Payment
+The payer signs a Stellar transaction via Freighter to transfer USDC or XLM to the bridge escrow address. The invoice amount is locked and the input becomes non-editable once payment is initiated.
 
-### 4. Anchor mock
-After on-chain confirmation, the app calls an anchor-like service that marks the invoice as fiat-ready. In the demo, this is a simulation boundary that represents off-ramp behavior rather than a real financial institution.
+### 4. Anchor Off-ramp
+After on-chain confirmation, the bridge engine executes a real Stellar transaction representing the anchor off-ramp (USDC burn to issuer, or XLM transfer to a redemption address). This step produces a real on-chain transaction hash.
 
-### 5. Mayar checkout/payout layer
-The backend creates a Mayar payment invoice representing merchant settlement payout. Paying/checking this invoice simulates merchant settlement completion.
+### 5. Mayar Checkout/Settlement
+The backend creates a Mayar Invoice via the `/hl/v1/invoice/create` endpoint for the IDR amount. The resulting checkout link allows QRIS or e-wallet payment to simulate real IDR merchant settlement.
 
-### 6. Merchant settlement dashboard
-The merchant side sees invoice amount, crypto equivalent, tx hash, settlement status, and payout status.
+### 6. Mayar Settlement Polling
+The app polls the Mayar invoice status every 5 seconds. When the status transitions to `paid`, the app marks the transaction as `SETTLED` and displays a green success state.
 
-## Screens & Layout (5-Page Mobile Wallet UI)
-| Screen/Tab | Purpose |
-|---|---|
-| Home | Account balance overview, quick faucet actions, and live CoinGecko rates. |
-| Tokens | Multi-asset token balance list (USDC, XLM, etc.), asset details, and quick deposit/withdrawal links. |
-| Scan | Direct camera-based QRIS scanning access or sandbox mock QR generator form. |
-| History | Transaction history log showing on-chain payment history, invoice details, and Mayar payout/settlement status. |
-| Profile | Freighter wallet connectivity setup, API/developer configuration, and network toggles. |
+### 7. Network Environment Sync
+The active network (Testnet/Mainnet) is automatically derived from the connected Freighter wallet. Switching the network inside the Freighter browser extension dynamically updates: Horizon endpoints, Mayar API environment (sandbox ↔ production), and transaction history filtering.
+
+### 8. Display Currency
+The user can toggle between IDR (Rp) and USD ($) in the Profile tab. All balance displays, invoice amounts, exchange rates, and history prices adapt to this setting. The preference is persisted in `localStorage`.
+
+### 9. Transaction History Network Isolation
+Each transaction is tagged with the network it was created on (`testnet` or `mainnet`). The History tab only shows transactions for the currently active network environment.
+
+---
+
+## Invoice Status Flow
+
+```
+SCANNED → QUOTED → PAYMENT_PENDING → PAYMENT_CONFIRMED
+       → ANCHOR_PROCESSING → PAYOUT_PROCESSING
+       → SETTLEMENT_PENDING → SETTLED
+                           → FAILED
+```
+
+Status display rules:
+- **Done steps**: solid blue circle
+- **Active step**: hollow blue border circle
+- **Pending steps**: hollow grey border circle
+- **SETTLED**: step 3 (Payout) header turns green
+
+---
 
 ## Technical Architecture
+
 ### Frontend
-- Vite + React SPA (TypeScript).
-- html5-qrcode library for browser-based scanning.
-- Freighter API for wallet signatures.
+- Vite + React SPA (TypeScript)
+- Tailwind CSS v4 via `@tailwindcss/vite`, primary color `#01AED6`
+- `html5-qrcode` for camera and gallery-based QR scanning
+- Freighter API (`@stellar/freighter-api`) for wallet connection and transaction signing
 
-### Backend
-- Client-side mock services and Vite proxy targets.
-- `quote-service` for IDR-to-crypto calculation.
-- `stellar-service` for payment verification.
-- `anchor-service` for simulated off-ramp state machine.
-- `mayar-service` for payout/checkout integration.
+### Payment & Data Layer
+- **Stellar SDK**: transaction building, signing, and submission to Horizon
+- **Mayar API** (sandbox/production): invoice creation and status polling
+- **Frankfurter API**: live USD/IDR exchange rate
+- **CoinGecko API**: live USDC and XLM token rates
 
-### Core integration model (Approach A - Production Design Decision)
-- **Invoice Format**: QRIS is the merchant-facing invoice format.
-- **Payer Asset Rail**: Stellar (USDC/XLM) handles the user-to-bridge payment transfer.
-- **Fiat Bridge Gateway**: The Bridge Pool receives crypto, off-ramps it conceptually, and triggers the disbursement.
-- **Settlement Execution (Approach A)**: Rather than paying the QRIS code directly (which is legally restricted and requires complex Bank Indonesia PJP 1 licensing), the system uses **Mayar Invoice/Payout API** to transfer IDR directly into the merchant's account. This provides maximum compatibility with existing retail merchants and complies with Indonesian payment regulations without high overhead.
+### State Persistence
+- `lintas_invoices` — transaction history array
+- `lintas_current_invoice` — active checkout invoice
+- `lintas_display_currency` — IDR or USD preference
+- `lintas_wallet_disconnected` — explicit disconnect flag to prevent auto-reconnection
+
+### Vite Proxy Targets
+- `/api/mayar-sandbox` → `https://mayar.id`
+- `/api/mayar-production` → `https://mayar.id`
+
+---
 
 ## Data Model
+
 ### Invoice
-- `id`
-- `merchant_id`
-- `idr_amount`
-- `currency`
-- `qris_payload`
-- `status`
-- `expires_at`
-
-### Quote
-- `invoice_id`
-- `asset_code`
-- `asset_amount`
-- `fx_rate`
-- `fee_amount`
-- `quote_expires_at`
-
-### Chain Payment
-- `invoice_id`
-- `stellar_address`
-- `tx_hash`
-- `network`
-- `confirmed_at`
-- `payment_status`
-
-### Settlement
-- `invoice_id`
-- `anchor_status`
-- `payout_provider`
-- `payout_reference`
-- `payout_status`
-- `bank_account_masked`
-
-## API Endpoints
-| Endpoint | Method | Purpose |
+| Field | Type | Description |
 |---|---|---|
-| `/api/scan/parse` | POST | Parse QR payload into invoice fields. |
-| `/api/quote` | POST | Create IDR to crypto quote. |
-| `/api/payments/intent` | POST | Create Stellar payment intent. |
-| `/api/payments/verify` | POST | Verify Stellar transaction. |
-| `/api/anchor/settle` | POST | Simulate off-ramp and mark fiat-ready state. |
-| `/api/payouts/create` | POST | Create Mayar settlement invoice. |
-| `/api/invoices/:id` | GET | Retrieve invoice state for UI. |
+| `id` | string | Unique invoice reference |
+| `merchant` | string | Merchant name from QRIS |
+| `city` | string | Merchant city from QRIS |
+| `idrAmount` | number | IDR amount from QRIS |
+| `status` | string | Current invoice status |
+| `network` | string | `testnet` or `mainnet` |
+| `cryptoAmount` | number | Crypto amount at quote time |
+| `assetCode` | string | `USDC` or `XLM` |
+| `stellarTxHash` | string | On-chain payment tx hash |
+| `anchorTxHash` | string | On-chain off-ramp tx hash |
+| `mayarSettlementInvoiceId` | string | Mayar invoice ID |
+| `mayarSettlementPaymentUrl` | string | Mayar checkout URL |
+| `paymentMethodUsed` | string | Method used for settlement |
 
-## Demo Logic
-For the hackathon demo, the anchor and payout layers can be mocked or run against Mayar sandbox API while preserving realistic state transitions.
+---
 
-Recommended demo states:
-- `SCANNED`
-- `QUOTED`
-- `PAYMENT_PENDING`
-- `PAYMENT_CONFIRMED`
-- `ANCHOR_PROCESSING`
-- `PAYOUT_PROCESSING`
-- `SETTLEMENT_PENDING`
-- `SETTLED`
+## Environment Variables
+
+| Variable | Description |
+|---|---|
+| `VITE_MAYAR_API_KEY` | Mayar API key (sandbox or production) |
+| `VITE_STELLAR_SECRET_KEY` | Bridge/escrow Stellar keypair secret |
+
+---
 
 ## Success Criteria
-- User can scan a QR and see parsed invoice details.
-- User can see a crypto quote for the IDR amount.
-- User can submit or simulate a Stellar payment and get a tx hash.
-- Merchant dashboard updates through settlement stages.
+- User can scan a QRIS code and see parsed invoice details.
+- User can see a live crypto quote for the IDR amount.
+- User can submit a real Stellar payment and get a real tx hash.
+- App automatically transitions through all settlement stages.
+- Mayar polling detects payment and marks the invoice as `SETTLED`.
+- History shows correct transactions per network environment.
 - Demo is understandable by judges in under 3 minutes.
 
-## Risks
-- QRIS payload parsing can vary depending on static or dynamic QR source.
-- Mayar API keys and sandbox credentials must be valid.
+---
+
+## Risks & Limitations
+- QRIS payload parsing can vary between static and dynamic QR sources.
+- Mayar API keys and sandbox credentials must be valid and not expired.
 - Anchor behavior in production requires real compliance, banking, and withdrawal rails.
+- CoinGecko and Frankfurter APIs are public and rate-limited; production use requires dedicated API access.
+
+---
 
 ## Pitch Positioning
-The safest positioning is: a crypto-funded merchant settlement layer for QRIS commerce, powered by Stellar for user payment and a local payout rail (Mayar) for merchant settlement.
+A crypto-funded merchant settlement layer for QRIS commerce, powered by Stellar for user payment and Mayar (a licensed Indonesian payment provider) for merchant IDR settlement.
 
-This avoids claiming that QRIS merchants directly receive crypto, while still showing a strong local payments use case.
-
-## V1 Build Plan
-### Day 1 to 2
-- Build scan UI and mock QR parser.
-- Create invoice and quote backend.
-
-### Day 3 to 4
-- Add Stellar payment intent and transaction verification.
-- Build processing state UI.
-
-### Day 5 to 6
-- Add anchor mock service and Mayar payout mock/integration layer.
-- Build merchant dashboard.
-
-### Day 7
-- Polish UX, add demo script, and prepare pitch video.
+This avoids claiming that QRIS merchants directly receive crypto, while demonstrating a strong, regulation-compatible local payments use case that is ready to scale.
