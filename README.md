@@ -7,9 +7,9 @@ Lintas is a mobile web bridge application that lets a crypto holder scan any sta
 
 ---
 
-## Architectural Approach (Approach A)
+## Architectural 
 
-To settle payments to merchants without requiring a multi-billion IDR Penyelenggara Jasa Pembayaran (PJP) Kategori 1 license from Bank Indonesia (required to pay dynamic QRIS rails directly), Lintas implements **Approach A**:
+To settle payments to merchants without requiring a multi-billion IDR Penyelenggara Jasa Pembayaran (PJP) Kategori 1 license from Bank Indonesia (required to pay dynamic QRIS rails directly):
 
 ```
 [User Wallet (Freighter)]
