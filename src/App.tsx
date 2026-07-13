@@ -1567,22 +1567,24 @@ function App() {
         </div>
         <div className="w-full max-w-[280px] flex flex-col gap-3">
           <button className="w-full bg-[#01AED6] hover:bg-[#0090b3] text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm" onClick={handleConnectWallet} disabled={isConnectingWallet}>
-            {isConnectingWallet ? 'Connecting...' : 'Connect Freighter Wallet'}
+            {isConnectingWallet ? 'Connecting...' : 'Connect Wallet'}
           </button>
 
-          <div className="flex items-center justify-between gap-2 my-1">
-            <div className="flex-1 h-[1px] bg-slate-200"></div>
-            <span className="text-[0.7rem] text-slate-400 font-bold">Or Mobile Native</span>
-            <div className="flex-1 h-[1px] bg-slate-200"></div>
+          <div className="hidden max-[768px]:flex flex-col gap-3 w-full">
+            <div className="flex items-center justify-between gap-2 my-1">
+              <div className="flex-1 h-[1px] bg-slate-200"></div>
+              <span className="text-[0.7rem] text-slate-400 font-bold">Or Mobile Native</span>
+              <div className="flex-1 h-[1px] bg-slate-200"></div>
+            </div>
+
+            <button className="w-full bg-slate-900 hover:bg-black text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm" onClick={handleCreateInstantWallet}>
+              Create Instant Wallet
+            </button>
+
+            <button className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200" onClick={handleImportSecretKey}>
+              Import Secret Key
+            </button>
           </div>
-
-          <button className="w-full bg-slate-900 hover:bg-black text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm" onClick={handleCreateInstantWallet}>
-            Create Instant Wallet
-          </button>
-
-          <button className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200" onClick={handleImportSecretKey}>
-            Import Secret Key
-          </button>
         </div>
       </div>
     );
@@ -1728,10 +1730,10 @@ function App() {
                     <span className="text-[0.9rem] font-bold text-slate-900">{inv.merchant}</span>
                     <span className="text-[0.75rem] text-slate-500">{inv.city} • Ref: {inv.id}</span>
                     <span className={`text-[0.7rem] font-semibold px-2 py-0.5 rounded ${inv.status === 'SCANNED' ? 'bg-indigo-50 text-indigo-600' :
-                        inv.status === 'QUOTED' ? 'bg-amber-100 text-amber-800' :
-                          inv.status === 'PAYMENT_PENDING' ? 'bg-sky-100 text-sky-800' :
-                            inv.status === 'FAILED' ? 'bg-red-50 text-red-600' :
-                              'bg-emerald-100 text-emerald-800'
+                      inv.status === 'QUOTED' ? 'bg-amber-100 text-amber-800' :
+                        inv.status === 'PAYMENT_PENDING' ? 'bg-sky-100 text-sky-800' :
+                          inv.status === 'FAILED' ? 'bg-red-50 text-red-600' :
+                            'bg-emerald-100 text-emerald-800'
                       }`}>
                       {inv.status === 'SETTLED' ? 'Success' :
                         inv.status === 'FAILED' ? 'Failed' :
