@@ -2210,7 +2210,7 @@ function App() {
                   {checkingPayment && paymentStatusMessage && (
                     <div className="bg-slate-800 text-sky-400 p-3 rounded-xl mt-3 animate-fade-in">
                       <h5 className="text-white text-[0.7rem] mb-1 mt-0">Status Console</h5>
-                      <pre className="font-mono text-[0.6rem] whitespace-pre-wrap bg-none border-none p-0 m-0">{paymentStatusMessage}</pre>
+                      <pre className="font-mono text-[0.6rem] whitespace-pre-wrap break-all bg-none border-none p-0 m-0">{paymentStatusMessage}</pre>
                     </div>
                   )}
                 </div>
@@ -2562,7 +2562,7 @@ function App() {
               {paymentStatusMessage && (
                 <div className="bg-slate-800 text-sky-400 p-3 rounded-2xl mt-4 animate-fade-in">
                   <h5 className="text-white text-[0.75rem] mb-1.5 mt-0">Log Console</h5>
-                  <pre className="font-mono text-[0.65rem] whitespace-pre-wrap bg-none border-none p-0 m-0">{paymentStatusMessage}</pre>
+                  <pre className="font-mono text-[0.65rem] whitespace-pre-wrap break-all bg-none border-none p-0 m-0">{paymentStatusMessage}</pre>
                 </div>
               )}
             </div>
