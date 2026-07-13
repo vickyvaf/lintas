@@ -1696,6 +1696,14 @@ function App() {
           <p className="m-0 text-slate-500 text-[0.85rem] max-w-[280px]">Connect Freighter extension or generate an instant embedded web wallet.</p>
         </div>
         <div className="w-full max-w-[280px] flex flex-col gap-3">
+          {isMobileOrTablet && !isStandalone && (
+            <button
+              onClick={handleInstallClick}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm animate-fade-in mb-1"
+            >
+              Install Application
+            </button>
+          )}
           <button className="w-full bg-[#01AED6] hover:bg-[#0090b3] text-white border-none py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200 shadow-sm" onClick={handleConnectWallet} disabled={isConnectingWallet}>
             {isConnectingWallet ? 'Connecting...' : 'Connect Wallet'}
           </button>
@@ -1712,7 +1720,7 @@ function App() {
             </button>
 
             <button className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 py-3 px-4 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-colors duration-200" onClick={handleImportWallet}>
-              Import Seed / Secret Key
+              Import Seed Phrase
             </button>
           </div>
         </div>
@@ -2486,14 +2494,6 @@ function App() {
                 <option value="USD">USD ($)</option>
               </select>
             </div>
-            {isMobileOrTablet && !isStandalone && (
-              <div className="flex justify-between items-center text-[0.85rem] border-t border-slate-100 pt-3 mt-1">
-                <span>Application:</span>
-                <button className="w-[160px] bg-indigo-600 hover:bg-indigo-700 text-white border-none py-1.5 px-2.5 rounded-lg font-bold text-[0.8rem] cursor-pointer transition-colors duration-200 text-center shadow-xs animate-fade-in" onClick={handleInstallClick}>
-                  Install App
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
