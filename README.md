@@ -144,13 +144,6 @@ Lintas is a mobile web bridge that lets a user scan any Indonesian QRIS code wit
 - Indonesian fintech developers exploring QRIS + blockchain payment architecture.
 - Businesses or wallets interested in building a crypto-to-fiat payments layer on Stellar for the Indonesian market.
 
-### Team Member Names & Roles
-| Name | Role |
-|---|---|
-| Vicky Adi Firmansyah | Solo Developer — Product, Design, Frontend, Smart Contract & Payment Integration |
-
-### Which country are you located?
-Indonesia 🇮🇩
 
 ### Expected Stellar Integration
 - **Freighter Wallet** — wallet connection, address resolution, and transaction signing.
@@ -159,7 +152,7 @@ Indonesia 🇮🇩
 - **Anchor Off-ramp Pattern** — after on-chain payment, the bridge executes a real Stellar transaction (USDC burned to issuer or XLM transferred to off-ramp address), producing a real tx hash before fiat settlement is triggered.
 - **Testnet / Mainnet** — both environments supported, auto-synced from the Freighter wallet network setting.
 
-### Hackathon Track
+### Track
 **Payment & Consumer Applications**
 
 Lintas directly addresses consumer-facing payments: a Stellar-powered QRIS wallet that enables crypto holders to pay at any Indonesian retail merchant and settle in local fiat (IDR) through a licensed payment provider — no exchange required, no manual off-ramp, no merchant-side changes needed.
