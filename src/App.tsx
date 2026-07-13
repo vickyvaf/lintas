@@ -195,6 +195,52 @@ function App() {
   });
   const [showConfirmEmbeddedModal, setShowConfirmEmbeddedModal] = useState<boolean>(false);
 
+  // PWA Installation States
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState<boolean>(false);
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState<boolean>(false);
+
+  useEffect(() => {
+    // 1. Detect if running in standalone mode (already installed PWA)
+    const checkStandalone = 
+      window.matchMedia('(display-mode: standalone)').matches || 
+      (navigator as any).standalone === true;
+    setIsStandalone(checkStandalone);
+
+    // 2. Detect if device is a mobile or tablet
+    const checkMobileOrTablet = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 
+      (navigator.maxTouchPoints > 0 && /Macintosh|Intel/i.test(navigator.userAgent));
+    setIsMobileOrTablet(checkMobileOrTablet);
+
+    // 3. Listen to PWA install prompt event
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to the PWA install prompt: ${outcome}`);
+      setDeferredPrompt(null);
+    } else {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+        (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+      if (isIOS) {
+        alert("To install Lintas on iOS:\n1. Tap the Share button in Safari (bottom navigation bar)\n2. Select 'Add to Home Screen'\n3. Tap 'Add' to confirm.");
+      } else {
+        alert("PWA installation is not supported by your browser or is already installed. If you are on Android/Chrome, look for the 'Install App' option in your browser menu.");
+      }
+    }
+  };
+
   // Load embedded wallet on startup
   useEffect(() => {
     if (isEmbeddedWallet && embeddedSecretKey) {
@@ -2396,6 +2442,14 @@ function App() {
                 <option value="USD">USD ($)</option>
               </select>
             </div>
+            {isMobileOrTablet && !isStandalone && (
+              <div className="flex justify-between items-center text-[0.85rem] border-t border-slate-100 pt-3 mt-1">
+                <span>Application:</span>
+                <button className="w-[160px] bg-indigo-600 hover:bg-indigo-700 text-white border-none py-1.5 px-2.5 rounded-lg font-bold text-[0.8rem] cursor-pointer transition-colors duration-200 text-center shadow-xs animate-fade-in" onClick={handleInstallClick}>
+                  Install App
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
