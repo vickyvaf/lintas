@@ -140,9 +140,9 @@ const SceneCard: React.FC<SceneCardProps> = ({
         {/* iPhone Shell Wrapper */}
         <div
           style={{
-            width: "320px",
-            height: "640px",
-            borderRadius: "40px",
+            width: "410px",
+            height: "820px",
+            borderRadius: "44px",
             border: "8px solid #1e293b",
             backgroundColor: "#000",
             position: "relative",
@@ -157,7 +157,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
                 <Video
                   src={staticFile(mediaFile)}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  onError={() => console.log(`Video file ${mediaFile} not found in public/ directory. Displaying placeholder.`)}
+                  onError={() => console.log(`Video file ${mediaFile} not found in public/ directory.`)}
                   startFrom={0}
                 />
               ) : (
@@ -166,27 +166,10 @@ const SceneCard: React.FC<SceneCardProps> = ({
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
-                    console.log(`Image file ${mediaFile} not found in public/ directory. Displaying placeholder.`);
+                    console.log(`Image file ${mediaFile} not found in public/ directory.`);
                   }}
                 />
               )}
-              {/* Fallback Label if file is missing */}
-              <div
-                style={{
-                  position: "absolute",
-                  padding: "20px",
-                  textAlign: "center",
-                  color: "#64748b",
-                  fontSize: "0.85rem",
-                  fontWeight: "bold",
-                  pointerEvents: "none",
-                }}
-              >
-                {placeholder}
-                <span style={{ display: "block", fontSize: "0.7rem", color: "#475569", marginTop: "10px" }}>
-                  (Add "{mediaFile}" to public/ to replace)
-                </span>
-              </div>
             </AbsoluteFill>
           ) : (
             <div
@@ -214,11 +197,11 @@ const SceneCard: React.FC<SceneCardProps> = ({
               top: "0",
               left: "50%",
               transform: "translateX(-50%)",
-              width: "120px",
-              height: "22px",
+              width: "160px",
+              height: "26px",
               backgroundColor: "#1e293b",
-              borderBottomLeftRadius: "15px",
-              borderBottomRightRadius: "15px",
+              borderBottomLeftRadius: "18px",
+              borderBottomRightRadius: "18px",
               zIndex: 10,
             }}
           />
