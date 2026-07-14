@@ -1912,36 +1912,32 @@ function App() {
             </div>
           ) : (
             sortedInvoices.map((inv) => (
-              <div className="bg-white border border-slate-200 p-4 rounded-2xl flex justify-between items-center cursor-pointer transition-colors duration-200 hover:bg-slate-50" key={inv.id} onClick={() => { setCurrentInvoice(inv); navigate('/scan'); }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <ArrowRightLeft size={20} />
-                  </div>
-                  <div className="flex flex-col items-start gap-1">
-                    <span className="text-[0.9rem] font-bold text-slate-900">{inv.merchant}</span>
-                    <span className="text-[0.75rem] text-slate-500">{inv.city} • Ref: {inv.id}</span>
-                    {inv.createdAt && (
-                      <span className="text-[0.68rem] text-slate-400 font-medium font-sans">
-                        {formatTxTime(inv.createdAt)}
-                      </span>
-                    )}
-                    <span className={`text-[0.7rem] font-semibold px-2 py-0.5 rounded ${inv.status === 'SCANNED' ? 'bg-indigo-50 text-indigo-600' :
-                      inv.status === 'QUOTED' ? 'bg-amber-100 text-amber-800' :
-                        inv.status === 'PAYMENT_PENDING' ? 'bg-sky-100 text-sky-800' :
-                          inv.status === 'FAILED' ? 'bg-red-50 text-red-600' :
-                            'bg-emerald-100 text-emerald-800'
-                      }`}>
-                      {inv.status === 'SETTLED' ? 'Success' :
-                        inv.status === 'FAILED' ? 'Failed' :
-                          inv.status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
-                    </span>
-                  </div>
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl flex items-start gap-3 cursor-pointer transition-colors duration-200 hover:bg-slate-50" key={inv.id} onClick={() => { setCurrentInvoice(inv); navigate('/scan'); }}>
+                <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <ArrowRightLeft size={20} />
                 </div>
-                <div className="flex flex-col items-end justify-center">
-                  <span className="font-bold text-[0.85rem] text-slate-900">
+                <div className="flex flex-col items-start gap-1 flex-1 min-w-0">
+                  <span className="text-[0.9rem] font-bold text-slate-900 leading-snug">{inv.merchant}</span>
+                  <span className="font-extrabold text-[0.95rem] text-slate-900 mt-0.5">
                     - {displayCurrency === 'USD'
                       ? `$ ${(inv.idrAmount / usdToIdrRate).toFixed(2)}`
                       : `Rp ${inv.idrAmount.toLocaleString()}`}
+                  </span>
+                  <span className="text-[0.75rem] text-slate-500 mt-0.5">{inv.city} • Ref: {inv.id}</span>
+                  {inv.createdAt && (
+                    <span className="text-[0.68rem] text-slate-400 font-medium font-sans">
+                      {formatTxTime(inv.createdAt)}
+                    </span>
+                  )}
+                  <span className={`text-[0.7rem] font-semibold px-2 py-0.5 rounded mt-0.5 ${inv.status === 'SCANNED' ? 'bg-indigo-50 text-indigo-600' :
+                    inv.status === 'QUOTED' ? 'bg-amber-100 text-amber-800' :
+                      inv.status === 'PAYMENT_PENDING' ? 'bg-sky-100 text-sky-800' :
+                        inv.status === 'FAILED' ? 'bg-red-50 text-red-600' :
+                          'bg-emerald-100 text-emerald-800'
+                    }`}>
+                    {inv.status === 'SETTLED' ? 'Success' :
+                      inv.status === 'FAILED' ? 'Failed' :
+                        inv.status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
                   </span>
                 </div>
               </div>
@@ -2455,7 +2451,7 @@ function App() {
 
     return (
       <div className="animate-fade-in flex flex-col gap-6 pb-28">
-        <h3 className="text-[1.1rem] font-bold text-slate-900 mb-3 tracking-[-0.3px]">Wallet & Configurations</h3>
+        <h3 className="text-[1.1rem] font-bold text-slate-900 tracking-[-0.3px]">Wallet & Configurations</h3>
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl">
           <div className="flex flex-col gap-4 bg-indigo-50 p-4 rounded-lg">
