@@ -1918,7 +1918,7 @@ function App() {
                 </div>
                 <div className="flex flex-col items-start gap-1 flex-1 min-w-0">
                   <span className="text-[0.9rem] font-bold text-slate-900 leading-snug">{inv.merchant}</span>
-                  <span className="font-extrabold text-[0.95rem] text-slate-900 mt-0.5">
+                  <span className="font-medium text-[0.8rem] text-slate-600 mt-0.5">
                     - {displayCurrency === 'USD'
                       ? `$ ${(inv.idrAmount / usdToIdrRate).toFixed(2)}`
                       : `Rp ${inv.idrAmount.toLocaleString()}`}
