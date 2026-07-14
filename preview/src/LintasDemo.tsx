@@ -17,49 +17,49 @@ const scenes = [
     subtitle: "LINTAS",
     desc: "Seamless Crypto-to-QRIS Merchant Bridge on Stellar. Connecting On-Chain Assets to Real-World Retail Payments.",
     placeholder: "Place Scene 1 Intro / Setup Image Here",
-    mediaFile: "scene1.png",
+    mediaFile: "1-introduction.png",
   },
   {
     title: "2. HOME & WALLET SYNC",
     subtitle: "Freighter Wallet Interop",
     desc: "Real-time balances of USDC and XLM. Auto-sync active network (Testnet/Mainnet) and preferred display currency (IDR/USD).",
     placeholder: "Place Wallet Connect & Balance Sync Image Here",
-    mediaFile: "scene2.png",
+    mediaFile: "2-freighter-wallet-interop.png",
   },
   {
     title: "3. DYNAMIC SCANNING",
     subtitle: "Real-Time QRIS Parser",
     desc: "Scan standard QRIS codes instantly. Lintas extracts invoice metadata and locks rates using the live exchange quote engine.",
     placeholder: "Place QRIS Scan & Nominal Quote Image Here",
-    mediaFile: "scene3.png",
+    mediaFile: "3-dynamic-scanning.png",
   },
   {
     title: "4. GALLERY & MY QR",
     subtitle: "Flexible Payment Options",
     desc: "Upload QRIS invoice images from your gallery. Generate personal receive QR code with optional IDR/USD amount requests.",
     placeholder: "Place Gallery Upload & Receive QR Image Here",
-    mediaFile: "scene4.png",
+    mediaFile: "4-flexible-payment-options.png",
   },
   {
     title: "5. STELLAR ESCROW",
     subtitle: "Anchor Off-ramp Redemptions",
     desc: "Freighter wallet signs the payment on-chain. Bridge engine executes the anchor off-ramp redemption with memo tracking.",
     placeholder: "Place freighter signing & anchor burn transaction video clip here",
-    mediaFile: "scene5.mp4",
+    mediaFile: "5-stellar-escrow.png",
   },
   {
     title: "6. FIAT SETTLEMENT",
     subtitle: "Payment Polling & Success",
     desc: "Automatic creation of Mayar payment checkout link. Status polls every 5 seconds, settling IDR directly to merchant bank accounts.",
     placeholder: "Place Mayar payment checkout & green success status video clip here",
-    mediaFile: "scene6.mp4",
+    mediaFile: "6-fiat-settlement.png",
   },
   {
     title: "7. HISTORY LOGS",
     subtitle: "Network Isolation",
     desc: "All transactions are recorded with their network origin. History tab filters data based on active wallet network environment.",
     placeholder: "Place History tab & mainnet/testnet filter Image Here",
-    mediaFile: "scene7.png",
+    mediaFile: "7-network-isolation.png",
   },
 ];
 
@@ -140,7 +140,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
         {/* iPhone Shell Wrapper */}
         <div
           style={{
-            width: "410px",
+            width: "460px",
             height: "820px",
             borderRadius: "44px",
             border: "8px solid #1e293b",
@@ -156,9 +156,9 @@ const SceneCard: React.FC<SceneCardProps> = ({
               {isVideo ? (
                 <Video
                   src={staticFile(mediaFile)}
-                  style={{ 
-                    width: "100%", 
-                    height: "100%", 
+                  style={{
+                    width: "100%",
+                    height: "100%",
                     objectFit: "cover"
                   }}
                   onError={() => console.log(`Video file ${mediaFile} not found in public/ directory.`)}
@@ -167,9 +167,9 @@ const SceneCard: React.FC<SceneCardProps> = ({
               ) : (
                 <img
                   src={staticFile(mediaFile)}
-                  style={{ 
-                    width: "100%", 
-                    height: "100%", 
+                  style={{
+                    width: "100%",
+                    height: "100%",
                     objectFit: "cover"
                   }}
                   onError={(e) => {
