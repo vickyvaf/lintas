@@ -152,18 +152,32 @@ const SceneCard: React.FC<SceneCardProps> = ({
         >
           {/* Dynamic Video or Image Element or Placeholder card */}
           {mediaFile ? (
-            <AbsoluteFill style={{ backgroundColor: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <AbsoluteFill style={{ backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>
               {isVideo ? (
                 <Video
                   src={staticFile(mediaFile)}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  style={{ 
+                    width: "100%", 
+                    height: "100%", 
+                    objectFit: "contain", 
+                    padding: "16px",
+                    paddingTop: "32px",
+                    boxSizing: "border-box"
+                  }}
                   onError={() => console.log(`Video file ${mediaFile} not found in public/ directory.`)}
                   startFrom={0}
                 />
               ) : (
                 <img
                   src={staticFile(mediaFile)}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  style={{ 
+                    width: "100%", 
+                    height: "100%", 
+                    objectFit: "contain", 
+                    padding: "16px",
+                    paddingTop: "32px",
+                    boxSizing: "border-box"
+                  }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                     console.log(`Image file ${mediaFile} not found in public/ directory.`);
