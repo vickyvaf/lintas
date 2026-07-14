@@ -12,7 +12,7 @@ import {
 import React from "react";
 
 // Slide configuration matching DEMO_VOICEOVER.md
-const scenes = [
+export const scenes = [
   {
     title: "1. INTRODUCTION",
     subtitle: "LINTAS",
@@ -20,6 +20,7 @@ const scenes = [
     placeholder: "Place Scene 1 Intro / Setup Image Here",
     mediaFile: "1-introduction.png",
     audioFile: "1.mp3",
+    durationFrames: 453,
   },
   {
     title: "2. HOME & WALLET SYNC",
@@ -28,6 +29,7 @@ const scenes = [
     placeholder: "Place Wallet Connect & Balance Sync Image Here",
     mediaFile: "2-freighter-wallet-interop.png",
     audioFile: "2.mp3",
+    durationFrames: 762,
   },
   {
     title: "3. DYNAMIC SCANNING",
@@ -36,6 +38,7 @@ const scenes = [
     placeholder: "Place QRIS Scan & Nominal Quote Image Here",
     mediaFile: "3-dynamic-scanning.png",
     audioFile: "3.mp3",
+    durationFrames: 495,
   },
   {
     title: "4. GALLERY & MY QR",
@@ -44,6 +47,7 @@ const scenes = [
     placeholder: "Place Gallery Upload & Receive QR Image Here",
     mediaFile: "4-flexible-payment-options.png",
     audioFile: "4.mp3",
+    durationFrames: 522,
   },
   {
     title: "5. STELLAR ESCROW",
@@ -52,6 +56,7 @@ const scenes = [
     placeholder: "Place freighter signing & anchor burn transaction video clip here",
     mediaFile: "5-stellar-escrow.png",
     audioFile: "5.mp3",
+    durationFrames: 493,
   },
   {
     title: "6. FIAT SETTLEMENT",
@@ -60,6 +65,7 @@ const scenes = [
     placeholder: "Place Mayar payment checkout & green success status video clip here",
     mediaFile: "6-fiat-settlement.png",
     audioFile: "6.mp3",
+    durationFrames: 502,
   },
   {
     title: "7. HISTORY LOGS",
@@ -68,8 +74,11 @@ const scenes = [
     placeholder: "Place History tab & mainnet/testnet filter Image Here",
     mediaFile: "7-network-isolation.png",
     audioFile: "7.mp3",
+    durationFrames: 716,
   },
 ];
+
+export const LintasDemoDuration = scenes.reduce((sum, s) => sum + s.durationFrames, 0);
 
 interface SceneCardProps {
   title: string;
@@ -231,28 +240,32 @@ const SceneCard: React.FC<SceneCardProps> = ({
 };
 
 export const LintasDemo: React.FC = () => {
-  const fps = 30;
-  const framesPerScene = 15 * fps; // 15 seconds per scene
+  let currentStartFrame = 0;
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0f172a" }}>
-      {scenes.map((scene, idx) => (
-        <Sequence
-          key={idx}
-          from={idx * framesPerScene}
-          durationInFrames={framesPerScene}
-        >
-          <SceneCard
-            title={scene.title}
-            subtitle={scene.subtitle}
-            desc={scene.desc}
-            placeholder={scene.placeholder}
-            mediaFile={scene.mediaFile}
-            audioFile={scene.audioFile}
-            index={idx}
-          />
-        </Sequence>
-      ))}
+      {scenes.map((scene, idx) => {
+        const startFrame = currentStartFrame;
+        currentStartFrame += scene.durationFrames;
+
+        return (
+          <Sequence
+            key={idx}
+            from={startFrame}
+            durationInFrames={scene.durationFrames}
+          >
+            <SceneCard
+              title={scene.title}
+              subtitle={scene.subtitle}
+              desc={scene.desc}
+              placeholder={scene.placeholder}
+              mediaFile={scene.mediaFile}
+              audioFile={scene.audioFile}
+              index={idx}
+            />
+          </Sequence>
+        );
+      })}
     </AbsoluteFill>
   );
 };

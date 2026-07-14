@@ -2,7 +2,7 @@ import "./index.css";
 import { Composition } from "remotion";
 import { HelloWorld, myCompSchema } from "./HelloWorld";
 import { Logo, myCompSchema2 } from "./HelloWorld/Logo";
-import { LintasDemo } from "./LintasDemo";
+import { LintasDemo, LintasDemoDuration } from "./LintasDemo";
 
 // Each <Composition> is an entry in the sidebar!
 
@@ -12,7 +12,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="LintasDemo"
         component={LintasDemo}
-        durationInFrames={3150} // 7 scenes * 15 seconds * 30 fps = 3150 frames (105 seconds)
+        durationInFrames={LintasDemoDuration}
         fps={30}
         width={1920}
         height={1080}
