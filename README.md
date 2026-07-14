@@ -34,6 +34,16 @@ To settle payments to merchants without requiring a multi-billion IDR Penyelengg
 
 ---
 
+## Soroban Smart Contract (Trustless Escrow)
+
+To guarantee transaction transparency, Lintas uses a **Soroban Smart Contract** on the Stellar network to act as a **Trustless Escrow**. User funds are locked on-chain and only released to the bridge when IDR settlement is confirmed, or refunded back to the buyer on timeout.
+
+- **Contract Source**: [contracts/escrow/src/lib.rs](file:///Users/vickyadifirmansyah/Documents/Projects/lintas/contracts/escrow/src/lib.rs)
+- **Stellar Testnet Contract ID**: `CDHE7R6PIFDLHNB7UQQMBBT5WQ7JWE3KZAML64UNU7REYJTFX4LLBC2L`
+- **Deployer Wallet Address**: `GC4U4DNBV5R2XQIPX7JNJZ7SUDH2SLV2F5E2EDDDKR6W2F52X5M73I3Y`
+
+---
+
 ## Features — 5-Tab Mobile Wallet UI
 
 | Tab | Description |
