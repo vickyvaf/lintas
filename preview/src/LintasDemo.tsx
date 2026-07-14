@@ -244,7 +244,7 @@ export const LintasDemo: React.FC = () => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0f172a" }}>
-      <Audio src={staticFile("backsound.mp3")} volume={0.3} loop />
+      <Audio src={staticFile("backsound.mp3")} volume={0.1} loop />
       {scenes.map((scene, idx) => {
         const startFrame = currentStartFrame;
         currentStartFrame += scene.durationFrames;
