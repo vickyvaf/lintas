@@ -16,50 +16,50 @@ const scenes = [
     title: "1. INTRODUCTION",
     subtitle: "LINTAS",
     desc: "Seamless Crypto-to-QRIS Merchant Bridge on Stellar. Connecting On-Chain Assets to Real-World Retail Payments.",
-    videoPlaceholder: "Place Scene 1 Intro / Setup Clip Here",
-    videoFile: "scene1.mp4",
+    placeholder: "Place Scene 1 Intro / Setup Image Here",
+    mediaFile: "scene1.png",
   },
   {
     title: "2. HOME & WALLET SYNC",
     subtitle: "Freighter Wallet Interop",
     desc: "Real-time balances of USDC and XLM. Auto-sync active network (Testnet/Mainnet) and preferred display currency (IDR/USD).",
-    videoPlaceholder: "Place Wallet Connect & Balance Sync Clip Here",
-    videoFile: "scene2.mp4",
+    placeholder: "Place Wallet Connect & Balance Sync Image Here",
+    mediaFile: "scene2.png",
   },
   {
     title: "3. DYNAMIC SCANNING",
     subtitle: "Real-Time QRIS Parser",
     desc: "Scan standard QRIS codes instantly. Lintas extracts invoice metadata and locks rates using the live exchange quote engine.",
-    videoPlaceholder: "Place QRIS Scan & Nominal Quote Clip Here",
-    videoFile: "scene3.mp4",
+    placeholder: "Place QRIS Scan & Nominal Quote Image Here",
+    mediaFile: "scene3.png",
   },
   {
     title: "4. GALLERY & MY QR",
     subtitle: "Flexible Payment Options",
     desc: "Upload QRIS invoice images from your gallery. Generate personal receive QR code with optional IDR/USD amount requests.",
-    videoPlaceholder: "Place Gallery Upload & Receive QR Clip Here",
-    videoFile: "scene4.mp4",
+    placeholder: "Place Gallery Upload & Receive QR Image Here",
+    mediaFile: "scene4.png",
   },
   {
     title: "5. STELLAR ESCROW",
     subtitle: "Anchor Off-ramp Redemptions",
     desc: "Freighter wallet signs the payment on-chain. Bridge engine executes the anchor off-ramp redemption with memo tracking.",
-    videoPlaceholder: "Place freighter signing & anchor burn transaction clip here",
-    videoFile: "scene5.mp4",
+    placeholder: "Place freighter signing & anchor burn transaction video clip here",
+    mediaFile: "scene5.mp4",
   },
   {
     title: "6. FIAT SETTLEMENT",
     subtitle: "Payment Polling & Success",
     desc: "Automatic creation of Mayar payment checkout link. Status polls every 5 seconds, settling IDR directly to merchant bank accounts.",
-    videoPlaceholder: "Place Mayar payment checkout & green success status clip here",
-    videoFile: "scene6.mp4",
+    placeholder: "Place Mayar payment checkout & green success status video clip here",
+    mediaFile: "scene6.mp4",
   },
   {
     title: "7. HISTORY LOGS",
     subtitle: "Network Isolation",
     desc: "All transactions are recorded with their network origin. History tab filters data based on active wallet network environment.",
-    videoPlaceholder: "Place History tab & mainnet/testnet filter clip here",
-    videoFile: "scene7.mp4",
+    placeholder: "Place History tab & mainnet/testnet filter Image Here",
+    mediaFile: "scene7.png",
   },
 ];
 
@@ -67,8 +67,8 @@ interface SceneCardProps {
   title: string;
   subtitle: string;
   desc: string;
-  videoPlaceholder: string;
-  videoFile: string;
+  placeholder: string;
+  mediaFile: string;
   index: number;
 }
 
@@ -76,8 +76,8 @@ const SceneCard: React.FC<SceneCardProps> = ({
   title,
   subtitle,
   desc,
-  videoPlaceholder,
-  videoFile,
+  placeholder,
+  mediaFile,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -91,6 +91,8 @@ const SceneCard: React.FC<SceneCardProps> = ({
 
   const xOffset = interpolate(slideProgress, [0, 1], [-100, 0]);
   const opacity = interpolate(slideProgress, [0, 1], [0, 1]);
+
+  const isVideo = mediaFile?.toLowerCase().endsWith(".mp4") || mediaFile?.toLowerCase().endsWith(".webm");
 
   return (
     <AbsoluteFill style={{ display: "flex", flexDirection: "row", backgroundColor: "#0f172a" }}>
@@ -148,15 +150,26 @@ const SceneCard: React.FC<SceneCardProps> = ({
             boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
           }}
         >
-          {/* Dynamic Video Element or Placeholder card */}
-          {videoFile ? (
+          {/* Dynamic Video or Image Element or Placeholder card */}
+          {mediaFile ? (
             <AbsoluteFill style={{ backgroundColor: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Video
-                src={staticFile(videoFile)}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                onError={() => console.log(`Video file ${videoFile} not found in public/ directory. Displaying placeholder.`)}
-                startFrom={0}
-              />
+              {isVideo ? (
+                <Video
+                  src={staticFile(mediaFile)}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={() => console.log(`Video file ${mediaFile} not found in public/ directory. Displaying placeholder.`)}
+                  startFrom={0}
+                />
+              ) : (
+                <img
+                  src={staticFile(mediaFile)}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    console.log(`Image file ${mediaFile} not found in public/ directory. Displaying placeholder.`);
+                  }}
+                />
+              )}
               {/* Fallback Label if file is missing */}
               <div
                 style={{
@@ -169,9 +182,9 @@ const SceneCard: React.FC<SceneCardProps> = ({
                   pointerEvents: "none",
                 }}
               >
-                {videoPlaceholder}
+                {placeholder}
                 <span style={{ display: "block", fontSize: "0.7rem", color: "#475569", marginTop: "10px" }}>
-                  (Add "{videoFile}" to public/ to replace)
+                  (Add "{mediaFile}" to public/ to replace)
                 </span>
               </div>
             </AbsoluteFill>
@@ -190,7 +203,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
                 fontWeight: "bold",
               }}
             >
-              {videoPlaceholder}
+              {placeholder}
             </div>
           )}
 
@@ -231,8 +244,8 @@ export const LintasDemo: React.FC = () => {
             title={scene.title}
             subtitle={scene.subtitle}
             desc={scene.desc}
-            videoPlaceholder={scene.videoPlaceholder}
-            videoFile={scene.videoFile}
+            placeholder={scene.placeholder}
+            mediaFile={scene.mediaFile}
             index={idx}
           />
         </Sequence>
