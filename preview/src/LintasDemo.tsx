@@ -6,6 +6,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
   Video,
+  Audio,
   staticFile,
 } from "remotion";
 import React from "react";
@@ -18,6 +19,7 @@ const scenes = [
     desc: "Seamless Crypto-to-QRIS Merchant Bridge on Stellar. Connecting On-Chain Assets to Real-World Retail Payments.",
     placeholder: "Place Scene 1 Intro / Setup Image Here",
     mediaFile: "1-introduction.png",
+    audioFile: "1.mp3",
   },
   {
     title: "2. HOME & WALLET SYNC",
@@ -25,6 +27,7 @@ const scenes = [
     desc: "Real-time balances of USDC and XLM. Auto-sync active network (Testnet/Mainnet) and preferred display currency (IDR/USD).",
     placeholder: "Place Wallet Connect & Balance Sync Image Here",
     mediaFile: "2-freighter-wallet-interop.png",
+    audioFile: "2.mp3",
   },
   {
     title: "3. DYNAMIC SCANNING",
@@ -32,6 +35,7 @@ const scenes = [
     desc: "Scan standard QRIS codes instantly. Lintas extracts invoice metadata and locks rates using the live exchange quote engine.",
     placeholder: "Place QRIS Scan & Nominal Quote Image Here",
     mediaFile: "3-dynamic-scanning.png",
+    audioFile: "3.mp3",
   },
   {
     title: "4. GALLERY & MY QR",
@@ -39,6 +43,7 @@ const scenes = [
     desc: "Upload QRIS invoice images from your gallery. Generate personal receive QR code with optional IDR/USD amount requests.",
     placeholder: "Place Gallery Upload & Receive QR Image Here",
     mediaFile: "4-flexible-payment-options.png",
+    audioFile: "4.mp3",
   },
   {
     title: "5. STELLAR ESCROW",
@@ -46,6 +51,7 @@ const scenes = [
     desc: "Freighter wallet signs the payment on-chain. Bridge engine executes the anchor off-ramp redemption with memo tracking.",
     placeholder: "Place freighter signing & anchor burn transaction video clip here",
     mediaFile: "5-stellar-escrow.png",
+    audioFile: "5.mp3",
   },
   {
     title: "6. FIAT SETTLEMENT",
@@ -53,6 +59,7 @@ const scenes = [
     desc: "Automatic creation of Mayar payment checkout link. Status polls every 5 seconds, settling IDR directly to merchant bank accounts.",
     placeholder: "Place Mayar payment checkout & green success status video clip here",
     mediaFile: "6-fiat-settlement.png",
+    audioFile: "6.mp3",
   },
   {
     title: "7. HISTORY LOGS",
@@ -60,6 +67,7 @@ const scenes = [
     desc: "All transactions are recorded with their network origin. History tab filters data based on active wallet network environment.",
     placeholder: "Place History tab & mainnet/testnet filter Image Here",
     mediaFile: "7-network-isolation.png",
+    audioFile: "7.mp3",
   },
 ];
 
@@ -69,6 +77,7 @@ interface SceneCardProps {
   desc: string;
   placeholder: string;
   mediaFile: string;
+  audioFile?: string;
   index: number;
 }
 
@@ -78,6 +87,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
   desc,
   placeholder,
   mediaFile,
+  audioFile,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -96,6 +106,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
 
   return (
     <AbsoluteFill style={{ display: "flex", flexDirection: "row", backgroundColor: "#0f172a" }}>
+      {audioFile && <Audio src={staticFile(audioFile)} />}
       {/* Left side: Slide Info & Pitch Details */}
       <div
         style={{
@@ -237,6 +248,7 @@ export const LintasDemo: React.FC = () => {
             desc={scene.desc}
             placeholder={scene.placeholder}
             mediaFile={scene.mediaFile}
+            audioFile={scene.audioFile}
             index={idx}
           />
         </Sequence>
