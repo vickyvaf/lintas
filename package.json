@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "build:web": "pnpm --filter web build",
+    "dev": "pnpm --filter lintas dev",
+    "build:web": "pnpm --filter lintas build",
     "preview:video": "pnpm --filter preview-video dev",
     "render:video": "pnpm --filter preview-video exec remotion render src/index.ts LintasDemo out/lintas-demo.mp4 --browser-executable=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --port=4000",
     "test:contracts": "cargo test --manifest-path apps/contracts/Cargo.toml"
